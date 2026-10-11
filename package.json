@@ -1,27 +1,51 @@
 {
-  "name": "scratch-2026-10-11-40a3d3",
+  "name": "bet-a-verse",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:db": "vitest run --project db",
+    "test:e2e": "playwright test",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset && pnpm seed",
+    "db:types": "supabase gen types typescript --local --schema public > src/lib/database.types.ts && prettier --write --log-level warn src/lib/database.types.ts",
+    "seed": "tsx scripts/seed.ts",
+    "seed:reset": "tsx scripts/seed.ts --reset",
+    "make-admin": "tsx scripts/make-admin.ts",
+    "env:local": "tsx scripts/env-local.ts"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.117.3",
+    "motion": "^14.1.0",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^18.0.7",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
+    "pg": "^8.23.1",
+    "prettier": "^3.9.9",
+    "supabase": "^2.120.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^5.0.3"
   },
   "packageManager": "pnpm@12.11.2"
 }
