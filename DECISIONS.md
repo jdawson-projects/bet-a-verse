@@ -52,3 +52,41 @@ Choices the spec leaves open, and the default picked for each. Newest at the bot
 - **`get_feed` takes an optional `p_exclude uuid[]`** so prefetching can skip cards already in the client's stack. `get_feed(limit)` still works.
 - **"68% of this pool says YES" counts distinct bettors**, not coins. It's a statement about people.
 - **pg_cron is created inside a guard** (`if pg_cron is available`), so the migrations also apply to plain Postgres in CI. Supabase local and cloud both have it.
+
+## Auth and onboarding
+
+- **Sign-in emails carry a magic link and a 6-digit code.** An installed PWA opens email links in the system browser, so the session would land in the wrong place; the code works everywhere. The template lives in `supabase/templates/magic_link.html` and must be pasted into the cloud dashboard.
+- **The signup-bonus toast shows right after the username step** (`/?welcome=1`).
+- **Theme is a cookie** (`theme=dark|light`), default light, so the server renders the right theme with no flash. Toggle in the header.
+- **Dates render in America/Chicago on the server** (the launch campus) and switch to the viewer's timezone after hydration (`LocalTime`). Vercel's servers run in UTC.
+
+## Feed and cards
+
+- **The stake pill sits inside the card, bottom-left; NO / Skip / YES are a full-width row under the card.** At 375 px there's no room for the pill and three buttons in one row without shrinking tap targets.
+- **Changing the stake on the feed also saves it as the profile's `default_stake`**, so the next session starts where you left off.
+- **The Undo toast goes to the top of the feed and the reveal is centered on the next card.** At the bottom, the toast would cover the stake pill and buttons for 5 seconds, and that's exactly when the next swipe happens.
+- **The Undo toast's lifetime is shortened by the round trip** (5 s − elapsed − 400 ms margin), so a tap on Undo never lands after the server's 5-second window.
+- **Estimates when a side is empty.** On a fresh market the card says "Be the first to call it". When only one side has coins, the line for the other side reads "no one on YES yet" (or NO) instead of an estimate. The spec's literal "Be the first to call it" read backwards on the side that already has bets.
+- **A committed card flies off on its own layer** and the next card is interactive immediately; `place_bet` starts at commit, not after the animation.
+- **Balance is optimistic.** It ticks down at commit; when the RPC returns, the authoritative balance minus stakes still in flight replaces it. A failed bet restores the coins and, for retryable errors (balance, rate limit), puts the card back.
+- **Keyboard:** ← NO, → YES, ↑ skip, 1–4 picks the stake.
+- **`/c` exists in Phase 1 as a plain browse/join list**, because the empty feed state links to Communities. Community pages, auto-join and leaderboards stay in Phase 2.
+
+## Market detail, profiles, admin
+
+- **"You won 9 coins" is the gross payout**, matching the card's "~9 coins if you're right". Losses show the stake. Refunds say so.
+- **A comment's YES/NO badge is the side the author has more coins on** (ties show YES).
+- **Eligible users see the resolve panel on the market page**: moderators, and the creator when they hold no non-cancelled bet. It and `/admin` ask for one confirmation, because resolution is final in Phase 1. That doesn't conflict with "no confirm dialogs", which is about betting.
+- **`/admin` opens on the resolution queue** (closed markets, oldest resolve-by first). Overdue markets are flagged.
+- **Win streaks** are consecutive won bets ordered by settlement time. Refunds and cancels don't break or extend a streak.
+- **The daily bonus function ships in Phase 1, but its button doesn't.** Streak and daily-bonus UI is Phase 2.
+
+## Seed
+
+- **Seed users are SQL-inserted `auth.users` rows** at `@seed.betaverse.local`. They can't sign in. A reserved admin account, `@betaverse`, creates the "official" markets and resolves the historical ones.
+- **All seed bets, resolutions and voids go through the real functions**, so the ledger invariant holds; the seed fails if it doesn't. Timestamps are backdated afterwards so history reads naturally. Ledger rows keep their real insert time, since the ledger is append-only.
+
+## PWA
+
+- **The service worker only serves an offline page for navigations.** No API or asset caching, so a deploy is never hidden behind a stale cache. Web push comes in Phase 3.
+- **Icons are drawn with `next/og` at request time** (`/icons/192`, `/icons/512`, `/icons/maskable`, `icon`, `apple-icon`), so there are no binary assets to keep in sync.

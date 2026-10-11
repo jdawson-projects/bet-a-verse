@@ -6,7 +6,7 @@ Source of truth: the build spec (Oct 11, 2026). Choices the spec leaves open are
 
 ### Foundation
 - [x] Scaffold Next.js (App Router, TS strict, Tailwind, pnpm), Supabase CLI config, Vitest, Playwright
-- [ ] PLAN.md, DECISIONS.md, .env.example, README
+- [x] PLAN.md, DECISIONS.md, .env.example, README
 
 ### Database (supabase/migrations)
 - [x] Schema: profiles, ledger, communities, community_members, markets, pools, bets, market_settlements, comments, market_likes, comment_likes, follows, swipe_events
@@ -25,26 +25,26 @@ Source of truth: the build spec (Oct 11, 2026). Choices the spec leaves open are
 - [x] `pnpm db:reset`: rebuild from migrations and reseed
 
 ### App
-- [ ] Supabase clients (browser, server, proxy session refresh)
-- [ ] /login: magic link + 6-digit code + Google; /welcome username step; signup-bonus toast
-- [ ] / Feed: card stack module (gesture physics isolated), stake pill, NO/Skip/YES buttons, keyboard arrows, optimistic bet, reveal, Undo toast (cancel_bet), prefetch at 5 left, empty state, reduced motion, vibration
-- [ ] /m/[id]: market detail, split bar, position, bet buttons, like, share, comments with YES/NO badges, outcome banner + result
-- [ ] /create: live validation, quick picks, success screen with share link
-- [ ] /u/[username]: stats (coins, W–L, win rate, streaks), communities, follows, Picks / Markets tabs
-- [ ] /admin: markets table by status, resolve/void with note + proof URL, feature, delete comments, ban
-- [ ] PWA manifest + icons, light/dark theme
+- [x] Supabase clients (browser, server, proxy session refresh)
+- [x] /login: magic link + 6-digit code + Google; /welcome username step; signup-bonus toast
+- [x] / Feed: card stack module (gesture physics isolated), stake pill, NO/Skip/YES buttons, keyboard arrows, optimistic bet, reveal, Undo toast (cancel_bet), prefetch at 5 left, empty state, reduced motion, vibration
+- [x] /m/[id]: market detail, split bar, position, bet buttons, like, share, comments with YES/NO badges, outcome banner + result
+- [x] /create: live validation, quick picks, success screen with share link
+- [x] /u/[username]: stats (coins, W–L, win rate, streaks), communities, follows, Picks / Markets tabs
+- [x] /admin: markets table by status, resolve/void with note + proof URL, feature, delete comments, ban
+- [x] PWA manifest + icons, light/dark theme
 
 ### Tests
 - [x] Vitest unit: settlement math, implied price, estimated payout (worked numbers in test names)
 - [x] Vitest DB: every required case from the spec against the real SQL functions
-- [ ] Playwright smoke: sign up → username → swipe → bet
+- [x] Playwright smoke: sign up → username → swipe → bet
 
 ### Definition of done
-- [ ] New user signs up, gets 1,000 coins
-- [ ] Bets on 10 seeded markets in under 60 seconds, balance changes
-- [ ] Opens a market and comments
-- [ ] Creates a market
-- [ ] Admin resolves a market; every payout matches the settlement math
+- [x] New user signs up, gets 1,000 coins
+- [x] Bets on 10 seeded markets in under 60 seconds, balance changes
+- [x] Opens a market and comments
+- [x] Creates a market
+- [x] Admin resolves a market; every payout matches the settlement math
 - [ ] Live on a Vercel URL (needs the owner's Vercel + Supabase accounts — see README › Deploy)
 
 ## Phase 2: the social layer (not started)

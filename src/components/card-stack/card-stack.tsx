@@ -103,9 +103,15 @@ export function CardStack<T>({
   const flyId = useRef(0);
   const top = items[0];
 
+  // Guards against committing the same card twice (e.g. two key presses before a re-render).
+  const committedKey = useRef<string | null>(null);
+
   const commit = useCallback(
     (dir: SwipeDirection) => {
       if (top === undefined) return;
+      const key = getKey(top);
+      if (committedKey.current === key) return;
+      committedKey.current = key;
       const fromX = x.get();
       const fromY = y.get();
       x.stop();
@@ -113,7 +119,7 @@ export function CardStack<T>({
       if (!reduce) setFlying((f) => [...f, { id: ++flyId.current, item: top, dir, fromX, fromY }]);
       onSwipe(top, dir);
     },
-    [top, x, y, reduce, onSwipe],
+    [top, getKey, x, y, reduce, onSwipe],
   );
 
   useImperativeHandle(ref, () => ({ swipe: commit }), [commit]);
@@ -124,6 +130,7 @@ export function CardStack<T>({
   useLayoutEffect(() => {
     x.set(0);
     y.set(0);
+    committedKey.current = null;
   }, [topKey, x, y]);
 
   const onDragEnd = (_: unknown, info: PanInfo) => {

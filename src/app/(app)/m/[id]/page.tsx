@@ -158,7 +158,7 @@ export default async function MarketPage({ params }: Params) {
             {market.status === "voided" ? "All bets refunded" : `${market.outcome?.toUpperCase()} it is`}
           </p>
           {market.resolution_note && <p className="mt-2 text-sm opacity-90">{market.resolution_note}</p>}
-          {market.resolution_proof_url && (
+          {market.resolution_proof_url && /^https?:\/\//i.test(market.resolution_proof_url) && (
             <a href={market.resolution_proof_url} target="_blank" rel="noopener noreferrer nofollow" className="mt-1 inline-block text-sm font-semibold underline">
               Proof
             </a>

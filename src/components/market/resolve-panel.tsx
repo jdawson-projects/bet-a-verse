@@ -29,6 +29,10 @@ export function ResolvePanel({
   const [busy, setBusy] = useState(false);
 
   async function run(action: Action) {
+    if (proof.trim() && !/^https?:\/\/\S+$/i.test(proof.trim())) {
+      toast.show({ message: "Proof URL must start with http:// or https://", tone: "error" });
+      return;
+    }
     setBusy(true);
     const supabase = getSupabaseBrowser();
     if (action === "void") {

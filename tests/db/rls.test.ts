@@ -74,6 +74,23 @@ describe("money columns are function-only", () => {
     }));
 });
 
+describe("url hardening", () => {
+  it("proof and avatar URLs must be http(s)", () =>
+    withDb(async (db) => {
+      const u = await db.createUser();
+      await expect(
+        db.as(u, `update public.profiles set avatar_url = 'javascript:alert(1)' where id = $1`, [u]),
+      ).rejects.toMatchObject({ sqlState: "23514" });
+      await db.as(u, `update public.profiles set avatar_url = 'https://example.com/a.png' where id = $1`, [u]);
+      const mod = await db.createUser({ role: "moderator" });
+      const m = await db.createMarket(u);
+      await expect(
+        db.as(mod, `select * from public.resolve_market($1, 'yes', 'x', 'javascript:alert(1)')`, [m]),
+      ).rejects.toMatchObject({ sqlState: "23514" });
+      await db.as(mod, `select * from public.resolve_market($1, 'yes', 'x', 'https://espn.com/game')`, [m]);
+    }));
+});
+
 describe("market creation", () => {
   const insert = `insert into public.markets (question, details, category, closes_at, resolves_by)
                   values ($1, '', 'campus', now() + make_interval(mins => $2), now() + make_interval(mins => $2) + interval '1 day')
