@@ -209,8 +209,8 @@ describe("get_feed", () => {
       await db.as(u, `insert into public.swipe_events (market_id, action, dwell_ms) values ($1, 'skip', 800)`, [skipped]);
 
       const ours = [bet, skipped, excluded, closed, byBanned, visible];
-      const feed = await db.as<{ id: string }>(u, `select id from public.get_feed(50, $1)`, [[excluded]]);
-      expect(feed.map((r) => r.id).filter((id) => ours.includes(id))).toEqual([visible]);
+      const feed = await db.feed(u, ours, [excluded]);
+      expect(feed.map((r) => r.id)).toEqual([visible]);
     }));
 
   it("a skipped market returns after 7 days, once", () =>
@@ -221,11 +221,11 @@ describe("get_feed", () => {
       const skip = `insert into public.swipe_events (market_id, action) values ($1, 'skip') returning id`;
       const [s1] = await db.as<{ id: string }>(u, skip, [m]);
       await db.sql(`update public.swipe_events set created_at = now() - interval '8 days' where id = $1`, [s1.id]);
-      let feed = await db.as<{ id: string }>(u, `select id from public.get_feed(50)`);
+      let feed = await db.feed(u, [m]);
       expect(feed.some((r) => r.id === m)).toBe(true);
       const [s2] = await db.as<{ id: string }>(u, skip, [m]);
       await db.sql(`update public.swipe_events set created_at = now() - interval '8 days' where id = $1`, [s2.id]);
-      feed = await db.as<{ id: string }>(u, `select id from public.get_feed(50)`);
+      feed = await db.feed(u, [m]);
       expect(feed.some((r) => r.id === m)).toBe(false);
     }));
 
@@ -243,7 +243,7 @@ describe("get_feed", () => {
       const plain = await db.createMarket(creator, { closesInMinutes: 60 * 24 * 5 });
       const featured = await db.createMarket(creator, { closesInMinutes: 60 * 24 * 5 });
       await db.sql(`update public.markets set featured_at = now() where id = $1`, [featured]);
-      const feed = await db.as<{ id: string; score: number }>(u, `select id, score from public.get_feed(50)`);
+      const feed = await db.feed(u, [plain, featured]);
       const score = (id: string) => feed.find((r) => r.id === id)!.score;
       expect(score(featured)).toBeGreaterThan(score(plain) + 3);
     }));

@@ -20,9 +20,9 @@ Source of truth: the build spec (Oct 11, 2026). Choices the spec leaves open are
 - [x] Generated database types checked in (src/lib/database.types.ts)
 
 ### Seed
-- [ ] `pnpm seed`: 3 communities, 12 fake users, ~60 open markets over 7 days, 15 resolved markets, bets and comments
-- [ ] `pnpm seed:reset`: voids then deletes everything flagged `meta.seed`
-- [ ] `pnpm db:reset`: rebuild from migrations and reseed
+- [x] `pnpm seed`: 3 communities, 12 fake users, ~60 open markets over 7 days, 15 resolved markets, bets and comments
+- [x] `pnpm seed:reset`: voids then deletes everything flagged `meta.seed`
+- [x] `pnpm db:reset`: rebuild from migrations and reseed
 
 ### App
 - [ ] Supabase clients (browser, server, proxy session refresh)

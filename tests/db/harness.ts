@@ -127,6 +127,17 @@ export class TestDb {
   }
 
   // --- reads -----------------------------------------------------------------
+  /** get_feed as a user, restricted to `onlyIds` (everything else is passed as p_exclude). */
+  async feed(userId: string, onlyIds: string[], extraExclude: string[] = []) {
+    return this.as<{ id: string; score: number }>(
+      userId,
+      `select id, score from public.get_feed(50, (
+         select coalesce(array_agg(m.id), '{}') from public.markets m where not (m.id = any($1::uuid[]))
+       ) || $2::uuid[])`,
+      [onlyIds, extraExclude],
+    );
+  }
+
 
   async balance(userId: string): Promise<number> {
     const [row] = await this.sql<{ balance: number }>(`select balance from public.profiles where id = $1`, [userId]);
