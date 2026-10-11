@@ -700,6 +700,29 @@ export type Database = {
           yes_total: number;
         }[];
       };
+      get_landing_markets: {
+        Args: { p_limit?: number };
+        Returns: {
+          bet_count: number;
+          bets_last_minute: number;
+          category: Database["public"]["Enums"]["market_category"];
+          closes_at: string;
+          community_slug: string;
+          featured: boolean;
+          id: string;
+          no_total: number;
+          question: string;
+          yes_total: number;
+        }[];
+      };
+      get_landing_stats: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          bets_today: number;
+          open_markets: number;
+          players: number;
+        }[];
+      };
       get_profile_stats: {
         Args: { p_user_id: string };
         Returns: {

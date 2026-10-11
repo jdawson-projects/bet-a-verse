@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/lib/database.types";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/env";
 
-const PUBLIC_PATHS = ["/login", "/auth/"];
+const PUBLIC_PATHS = ["/login", "/landing", "/auth/"];
 
 /**
  * Refreshes the Supabase session cookie on every request and sends signed-out
@@ -41,13 +41,22 @@ export async function updateSession(request: NextRequest) {
     return r;
   };
 
+  // Signed-out visitors see the landing page at "/" (a rewrite, so the URL stays "/").
+  if (!signedIn && pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/landing";
+    const r = NextResponse.rewrite(url, { request });
+    for (const c of response.cookies.getAll()) r.cookies.set(c);
+    for (const [k, v] of Object.entries(cacheHeaders)) r.headers.set(k, v);
+    return r;
+  }
   if (!signedIn && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.search = pathname === "/" ? "" : `?next=${encodeURIComponent(pathname + search)}`;
+    url.search = `?next=${encodeURIComponent(pathname + search)}`;
     return redirect(url);
   }
-  if (signedIn && pathname === "/login") {
+  if (signedIn && (pathname === "/login" || pathname === "/landing")) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";

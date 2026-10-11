@@ -1,0 +1,138 @@
+.frame {
+  position: relative;
+  width: 100%;
+  container-type: inline-size;
+}
+
+.city {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Comic-style bet bubbles, bottom-center pinned to a landmark, tail pointing down. */
+.bubble {
+  --ink: #0d1222;
+  --paper: #ffffff;
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+  width: max-content;
+  max-width: min(40cqw, 14em);
+  padding: 0.55em 0.75em 0.6em;
+  border: 0.22em solid var(--ink);
+  border-radius: 1.1em;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-bubble), var(--font-sans);
+  font-size: clamp(8.5px, 1.2cqw, 12px);
+  line-height: 1.15;
+  text-decoration: none;
+  box-shadow: 0.3em 0.4em 0 var(--ink);
+  transform: translate(-50%, calc(-100% - 0.9em)) rotate(var(--tilt, -1.5deg));
+  animation:
+    bubble-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.3) both,
+    bubble-bob 4.2s ease-in-out infinite alternate;
+  transition: box-shadow 0.15s ease;
+}
+.bubble:nth-child(even) {
+  --tilt: 1.5deg;
+}
+.bubble:nth-child(3n) {
+  --tilt: -2.5deg;
+}
+.bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -0.95em;
+  width: 1.1em;
+  height: 1.1em;
+  background: var(--paper);
+  border-right: 0.22em solid var(--ink);
+  border-bottom: 0.22em solid var(--ink);
+  transform: translateX(-50%) rotate(45deg);
+}
+.bubble:hover,
+.bubble:focus-visible {
+  box-shadow: 0.45em 0.6em 0 var(--ink);
+  z-index: 3;
+}
+
+:global(.dark) .bubble {
+  --ink: #0b0d16;
+  --paper: #fff7d6;
+}
+
+.place {
+  font-size: 0.74em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #3554f5;
+}
+.question {
+  font-weight: 700;
+  font-size: 1.02em;
+}
+.odds {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35em;
+  font-weight: 700;
+  font-size: 0.86em;
+}
+.yes,
+.no {
+  padding: 0.12em 0.5em;
+  border-radius: 999px;
+  color: #ffffff;
+}
+.yes {
+  background: #0f9d58;
+}
+.no {
+  background: #e5334b;
+}
+.pot {
+  color: #5c6479;
+  font-weight: 600;
+}
+
+.secondary {
+  display: none;
+}
+@media (min-width: 640px) {
+  .secondary {
+    display: flex;
+  }
+}
+
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-100% - 0.2em)) scale(0.7) rotate(var(--tilt, -1.5deg));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, calc(-100% - 0.9em)) scale(1) rotate(var(--tilt, -1.5deg));
+  }
+}
+@keyframes bubble-bob {
+  from {
+    margin-top: 0;
+  }
+  to {
+    margin-top: -0.45em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble {
+    animation: none;
+  }
+}

@@ -61,8 +61,11 @@ supabase/
 scripts/               seed, seed reset, make-admin, env-local
 src/
   proxy.ts             session refresh + signed-out redirect (Next 16's middleware)
+  app/landing/         public landing page (served at "/" when signed out): the campus map, live markets
   app/(app)/           signed-in screens: feed, /m/[id], /create, /u/[username], /admin, /c
   app/login, welcome   sign-in and username onboarding
+  components/city/     the isometric UChicago map: projection + depth sort, the scene, the animation loop
+  components/landing/  bet bubbles pinned to landmarks, the word cycler
   components/card-stack/  swipe physics only (no data); the feed composes it
   components/feed/     feed data layer: optimistic bets, reveal, undo, prefetch
   lib/money.ts         pricing and settlement math (mirrors SQL; used for estimates and tests)

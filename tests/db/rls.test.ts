@@ -72,6 +72,26 @@ describe("money columns are function-only", () => {
     withDb(async (db) => {
       await expectDenied(db.sql(`set local role anon; select * from public.markets`));
     }));
+
+  it("anon can call the landing-page functions, which expose no user ids", () =>
+    withDb(async (db) => {
+      const creator = await db.createUser();
+      const m = await db.createMarket(creator);
+      const u = await db.createUser();
+      await db.placeBet(u, m, "yes", 5);
+      // Featured markets come first, so this one is in the result set regardless of seed data.
+      await db.sql(`update public.markets set featured_at = now() where id = $1`, [m]);
+      await db.sql(`set local role anon`);
+      const rows = await db.sql<{ id: string; question: string }>(`select * from public.get_landing_markets(40)`);
+      const mine = rows.find((r) => r.id === m);
+      expect(mine?.question).toBe("Will this test market resolve correctly?");
+      expect(Object.keys(mine!)).not.toContain("creator_id");
+      const [stats] = await db.sql<{ open_markets: number; players: number }>(`select * from public.get_landing_stats()`);
+      expect(stats.open_markets).toBeGreaterThanOrEqual(1);
+      await expectDenied(db.sql(`select * from public.get_feed(5)`));
+      await expectDenied(db.sql(`select * from public.markets`));
+      await db.sql(`set local role postgres`);
+    }));
 });
 
 describe("url hardening", () => {

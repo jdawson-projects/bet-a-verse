@@ -90,3 +90,15 @@ Choices the spec leaves open, and the default picked for each. Newest at the bot
 
 - **The service worker only serves an offline page for navigations.** No API or asset caching, so a deploy is never hidden behind a stale cache. Web push comes in Phase 3.
 - **Icons are drawn with `next/og` at request time** (`/icons/192`, `/icons/512`, `/icons/maskable`, `icon`, `apple-icon`), so there are no binary assets to keep in sync.
+
+## Landing page and the campus map
+
+- **Signed-out `/` is a landing page; signed-in `/` is the feed.** The proxy rewrites `/` to `/landing` for visitors (the URL stays `/`), and sends signed-in users who hit `/landing` or `/login` to the feed. `/login` still exists for deep links (`?next=`).
+- **The map is UChicago's campus, not downtown.** Hyde Park from 55th to 60th Street, Ellis Avenue to the Metra tracks, drawn as inline SVG from a grid scene (`src/components/city/scene.tsx`). It's a map a student recognizes, not a survey: blocks are compressed and some buildings are stand-ins.
+- **It's generated, not an image.** Every building is a box or gable on a 24×24 isometric grid; faces take three shades from one base color via `color-mix`, and dark mode swaps the palette (night sky, lit windows) through CSS variables. No PNGs to redraw when something changes.
+- **Depth is a topological sort, not `x + y`.** Props that overlap on screen get a behind/in-front edge from the axis rule (entirely behind along x, y or z); the rest fall back to `x + y`. Vehicles are re-slotted in the DOM each frame with the same rule so the 55 bus passes behind the Reg and in front of Stagg.
+- **Vehicles animate with `requestAnimationFrame` and `setAttribute`**, not React state, and pause when the map is scrolled out of view or `prefers-reduced-motion` is set (they're then drawn once, parked).
+- **Bet bubbles are real markets.** `get_landing_markets` (anon-callable, SECURITY DEFINER, no user ids) returns open markets; each landmark has keywords, a market lands on the first landmark its question mentions, unmatched ones fall back by category (sports → Stagg Field, campus → the quad, news → the sky over the Midway, culture → Logan, crypto → Booth), and a greedy pass keeps at most six that don't overlap. Phones show the first four.
+- **Bubble letters are Fredoka** (Google Fonts via `next/font`), loaded only on the landing page.
+- **Seed questions name campus places** (the Reg, Saieh Hall, Botany Pond, the Pub at Ida Noyes, Stagg, the Midway rink, the 55 bus, Metra) so the day-one map has bubbles.
+- **Turbopack's Tailwind rule excludes `*.module.css`.** The scaffold ran every stylesheet through `@tailwindcss/turbopack` as plain CSS, which silently dropped CSS-module class exports.

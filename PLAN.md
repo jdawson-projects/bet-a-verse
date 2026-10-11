@@ -33,6 +33,7 @@ Source of truth: the build spec (Oct 11, 2026). Choices the spec leaves open are
 - [x] /u/[username]: stats (coins, W–L, win rate, streaks), communities, follows, Picks / Markets tabs
 - [x] /admin: markets table by status, resolve/void with note + proof URL, feature, delete comments, ban
 - [x] PWA manifest + icons, light/dark theme
+- [x] Public landing page at `/` (signed out): isometric UChicago campus map with live bet bubbles, word cycler, live markets, sign-in (owner's request, Oct 11)
 
 ### Tests
 - [x] Vitest unit: settlement math, implied price, estimated payout (worked numbers in test names)

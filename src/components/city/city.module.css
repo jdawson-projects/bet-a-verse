@@ -1,0 +1,264 @@
+/* Isometric Chicago. Palette lives in custom properties so dark mode turns it into night. */
+
+.root {
+  --land: #e4e7ee;
+  --land-edge: #c6cbd7;
+  --street: #c3c8d2;
+  --dash: #f4eec4;
+  --park: #c5dcae;
+  --water: #8dbbe6;
+  --water-deep: #6ea2d6;
+  --wave: rgba(255, 255, 255, 0.55);
+  --bank: #b7bdc9;
+  --bridge: #8d939f;
+  --deck: #7a808d;
+  --rail: #d7dbe3;
+  --pillar: #5b606c;
+  --trunk: #6f4b2c;
+  --leaf: #5f9c4b;
+  --leaf-light: #86c267;
+  --win: #121a2e;
+  --win-opacity: 0.22;
+  --stripe: rgba(255, 255, 255, 0.55);
+  --top-mix: #ffffff;
+  --top-pct: 30%;
+  --left-pct: 0%;
+  --right-pct: 30%;
+  --side-mix: #000000;
+  --edge: rgba(10, 14, 30, 0.14);
+  --light: #ff3b3b;
+  --beacon: #ffffff;
+  --shadow: rgba(20, 30, 60, 0.28);
+  --cloud: rgba(255, 255, 255, 0.92);
+  --star: transparent;
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+:global(.dark) .root {
+  --land: #1b2130;
+  --land-edge: #0f1420;
+  --street: #262c3b;
+  --dash: #6b6540;
+  --park: #1f3a2b;
+  --water: #1b3b61;
+  --water-deep: #142d4b;
+  --wave: rgba(190, 220, 255, 0.28);
+  --bank: #2b3344;
+  --bridge: #3a4152;
+  --deck: #343a48;
+  --rail: #8a92a6;
+  --pillar: #252a36;
+  --trunk: #3a2a1c;
+  --leaf: #2f5d3a;
+  --leaf-light: #437a4b;
+  --win: #ffd36a;
+  --win-opacity: 0.9;
+  --stripe: rgba(255, 255, 255, 0.18);
+  --top-mix: #ffffff;
+  --top-pct: 4%;
+  --left-pct: 48%;
+  --right-pct: 64%;
+  --side-mix: #05070f;
+  --edge: rgba(0, 0, 0, 0.35);
+  --light: #ff4d4d;
+  --beacon: #ffe8a3;
+  --shadow: rgba(0, 0, 0, 0.6);
+  --cloud: rgba(140, 160, 200, 0.16);
+  --star: #e8eeff;
+}
+
+/* Box faces: one base color per building, three shades derived from it. */
+.ft,
+.fl,
+.fr {
+  stroke: var(--edge);
+  stroke-width: 0.6;
+  stroke-linejoin: round;
+}
+.ft {
+  fill: color-mix(in srgb, var(--c), var(--top-mix) var(--top-pct));
+}
+.fl {
+  fill: color-mix(in srgb, var(--c), var(--side-mix) var(--left-pct));
+}
+.fr {
+  fill: color-mix(in srgb, var(--c), var(--side-mix) var(--right-pct));
+}
+
+.win {
+  fill: var(--win);
+  opacity: var(--win-opacity);
+}
+.stripe {
+  stroke: var(--stripe);
+}
+
+.land {
+  fill: var(--land);
+}
+.landEdge {
+  fill: var(--land-edge);
+}
+.street {
+  fill: var(--street);
+}
+.dash {
+  stroke: var(--dash);
+}
+.park {
+  fill: var(--park);
+}
+.water {
+  fill: var(--water);
+}
+.waterDeep {
+  fill: var(--water-deep);
+}
+.wave {
+  stroke: var(--wave);
+}
+.bank {
+  fill: var(--bank);
+}
+.bridge {
+  fill: var(--bridge);
+}
+.deck {
+  fill: var(--deck);
+}
+.rail {
+  stroke: var(--rail);
+}
+.pillar {
+  fill: var(--pillar);
+}
+.trunk {
+  stroke: var(--trunk);
+}
+.leaf {
+  fill: var(--leaf);
+}
+.leafLight {
+  fill: var(--leaf-light);
+}
+.shadow {
+  fill: var(--shadow);
+}
+.cloud {
+  fill: var(--cloud);
+}
+.star {
+  fill: var(--star);
+}
+
+/* Ambient motion */
+.blink {
+  fill: var(--light);
+  animation: bav-blink 1.6s ease-in-out infinite;
+}
+.beacon {
+  fill: var(--beacon);
+  animation: bav-blink 2.4s ease-in-out infinite 0.6s;
+}
+.twinkle {
+  animation: bav-twinkle 3.2s ease-in-out infinite;
+}
+.drift {
+  animation: bav-drift 70s ease-in-out infinite alternate;
+}
+.driftSlow {
+  animation: bav-drift 110s ease-in-out infinite alternate-reverse;
+}
+.ripple {
+  animation: bav-ripple 9s linear infinite;
+}
+
+/* Buildings grow out of the ground on first paint; vehicles and tags fade in after. */
+.rise {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: bav-rise 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+.fadeIn {
+  animation: bav-fade 0.6s ease-out both;
+}
+
+@keyframes bav-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.12;
+  }
+}
+@keyframes bav-twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes bav-drift {
+  from {
+    transform: translateX(-40px);
+  }
+  to {
+    transform: translateX(40px);
+  }
+}
+@keyframes bav-ripple {
+  from {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  to {
+    transform: translate(-16px, 8px);
+    opacity: 0;
+  }
+}
+@keyframes bav-rise {
+  from {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+@keyframes bav-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blink,
+  .beacon,
+  .twinkle,
+  .drift,
+  .driftSlow,
+  .ripple,
+  .rise,
+  .fadeIn {
+    animation: none;
+  }
+}

@@ -30,8 +30,11 @@ test("sign up, get 1,000 coins, place 10 bets in under 60 seconds", async ({ pag
   const email = `e2e-${stamp}@uchicago.edu`;
   const username = `e2e_${stamp}`.slice(0, 20);
 
-  // Sign up
+  // Landing page (signed out), then sign up
   await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Call it before your friends do." })).toBeVisible();
+  await expect(page.getByRole("img", { name: /University of Chicago campus/ })).toBeVisible();
+  await page.getByRole("link", { name: "Start swiping" }).click();
   await expect(page).toHaveURL(/\/login/);
   await page.getByPlaceholder("you@uchicago.edu").fill(email);
   await page.getByRole("button", { name: "Email me a sign-in link" }).click();
