@@ -56,6 +56,7 @@ export function Balance() {
             : "bg-surface ring-line"
       }`}
       aria-label={`${formatCoins(balance)} coins`}
+      data-testid="balance"
     >
       <CoinIcon />
       <span aria-hidden>{formatCoins(shown)}</span>
