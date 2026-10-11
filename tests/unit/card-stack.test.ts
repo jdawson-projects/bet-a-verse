@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { decideSwipe } from "@/components/card-stack/card-stack";
 
 const T = 110;
-const V = 650;
+const V = 800;
 const still = { x: 0, y: 0 };
 
 describe("decideSwipe (card stack release physics)", () => {
@@ -17,9 +17,10 @@ describe("decideSwipe (card stack release physics)", () => {
     expect(decideSwipe({ x: 0, y: -90 }, still, T, V)).toBeNull();
   });
 
-  it("a fast fling commits a shorter drag, but not a tiny twitch", () => {
-    expect(decideSwipe({ x: 45, y: 0 }, { x: 900, y: 0 }, T, V)).toBe("right");
-    expect(decideSwipe({ x: 10, y: 0 }, { x: 900, y: 0 }, T, V)).toBeNull();
+  it("a fast fling commits a shorter drag (≥ 60 px), but a fast 50 px twitch does not", () => {
+    expect(decideSwipe({ x: 70, y: 0 }, { x: 1200, y: 0 }, T, V)).toBe("right");
+    expect(decideSwipe({ x: 50, y: 0 }, { x: 5000, y: 0 }, T, V)).toBeNull();
+    expect(decideSwipe({ x: 90, y: 0 }, { x: 500, y: 0 }, T, V)).toBeNull();
   });
 
   it("dragging down never commits", () => {

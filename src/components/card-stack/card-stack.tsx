@@ -49,7 +49,7 @@ export interface CardStackProps<T> {
   visible?: number;
   /** Drag distance in px that commits a swipe. Default 110. */
   threshold?: number;
-  /** Fling speed in px/s that commits a shorter swipe. Default 650. */
+  /** Fling speed in px/s that commits a shorter swipe (at least 60 px). Default 800. */
   velocity?: number;
   /** Must establish a positioned box with a size (default "relative h-full"). */
   className?: string;
@@ -59,6 +59,9 @@ const FLY_SECONDS = 0.26;
 const SPRING = { type: "spring", stiffness: 520, damping: 34 } as const;
 const ROTATION = [-15, 0, 15];
 
+/** A fling must still travel this far, so a quick twitch never places a bet. */
+const MIN_FLING_PX = 60;
+
 export function decideSwipe(
   offset: { x: number; y: number },
   speed: { x: number; y: number },
@@ -67,9 +70,9 @@ export function decideSwipe(
 ): SwipeDirection | null {
   const horizontal = Math.abs(offset.x) >= Math.abs(offset.y);
   if (horizontal) {
-    if (offset.x > threshold || (speed.x > velocity && offset.x > 30)) return "right";
-    if (offset.x < -threshold || (speed.x < -velocity && offset.x < -30)) return "left";
-  } else if (offset.y < -threshold || (speed.y < -velocity && offset.y < -30)) {
+    if (offset.x > threshold || (speed.x > velocity && offset.x > MIN_FLING_PX)) return "right";
+    if (offset.x < -threshold || (speed.x < -velocity && offset.x < -MIN_FLING_PX)) return "left";
+  } else if (offset.y < -threshold || (speed.y < -velocity && offset.y < -MIN_FLING_PX)) {
     return "up";
   }
   return null;
@@ -92,7 +95,7 @@ export function CardStack<T>({
   ref,
   visible = 3,
   threshold = 110,
-  velocity = 650,
+  velocity = 800,
   className = "relative h-full",
 }: CardStackProps<T>) {
   const reduce = useReducedMotion() ?? false;
