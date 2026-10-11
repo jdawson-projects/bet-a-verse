@@ -151,3 +151,21 @@ describe("sidePrice", () => {
     expect(formatPrice(sidePrice(0.59, "yes"))).toBe("0.59");
   });
 });
+
+describe("market rules", () => {
+  it("questions must end in ? and fit in 120 chars; Will/Does/Is/Can is advisory", async () => {
+    const { checkQuestion } = await import("@/lib/market-rules");
+    expect(checkQuestion("Will it snow tomorrow?")).toEqual({ ok: true, error: null, hint: null });
+    expect(checkQuestion("Will it snow tomorrow").ok).toBe(false);
+    expect(checkQuestion(`Will ${"x".repeat(120)}?`).ok).toBe(false);
+    const advisory = checkQuestion("Bears win on Sunday?");
+    expect(advisory.ok).toBe(true);
+    expect(advisory.hint).toMatch(/Will, Does, Is or Can/);
+  });
+
+  it("tonight 11:59 pm is local end of day", async () => {
+    const { closeFromPick } = await import("@/lib/market-rules");
+    const d = closeFromPick("tonight", new Date(2026, 9, 11, 14, 0))!;
+    expect([d.getHours(), d.getMinutes(), d.getDate()]).toEqual([23, 59, 11]);
+  });
+});

@@ -4,13 +4,14 @@ import { notFound } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { Countdown } from "@/components/countdown";
 import { ArrowLeftIcon } from "@/components/icons";
+import { LocalTime } from "@/components/local-time";
 import { BetPanel } from "@/components/market/bet-panel";
 import { Comments, type CommentView } from "@/components/market/comments";
-import { MarketActions } from "@/components/market/market-actions";
+import { MarketActions, ShareButton } from "@/components/market/market-actions";
 import { PricePills, SplitBar } from "@/components/market/price";
 import { ResolvePanel } from "@/components/market/resolve-panel";
 import { SideBadge } from "@/components/side-badge";
-import { CATEGORY_LABELS, formatCoins, formatDateTime, timeAgo } from "@/lib/format";
+import { CATEGORY_LABELS, formatCoins, timeAgo } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { formatPrice, payoutIfRight, sidePrice } from "@/lib/money";
 import { getSupabaseServer } from "@/lib/supabase/server";
@@ -166,14 +167,7 @@ export default async function MarketPage({ params }: Params) {
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-black/15 px-4 py-3">
               <p className="text-xl font-black">{result.text}</p>
               {result.share && (
-                <MarketActions
-                  marketId={market.id}
-                  question={market.question}
-                  likeCount={market.like_count}
-                  liked={Boolean(likeRow)}
-                  shareText={`${result.share} "${market.question}"`}
-                  shareLabel="Share result"
-                />
+                <ShareButton marketId={market.id} text={`${result.share} "${market.question}"`} label="Share result" />
               )}
             </div>
           )}
@@ -190,15 +184,13 @@ export default async function MarketPage({ params }: Params) {
           <Stat label="NO pot" value={formatCoins(market.no_total)} />
           <Stat
             label={isOpen ? "Closes in" : "Closed"}
-            value={isOpen ? <Countdown iso={market.closes_at} initialNow={now} /> : formatDateTime(market.closes_at)}
+            value={isOpen ? <Countdown iso={market.closes_at} initialNow={now} /> : <LocalTime iso={market.closes_at} />}
           />
-          <Stat label="Resolves by" value={formatDateTime(market.resolves_by)} />
+          <Stat label="Resolves by" value={<LocalTime iso={market.resolves_by} />} />
           <Stat label="Max stake" value={`${market.max_stake} coins`} />
           <Stat label="Rake" value={`${market.rake_bps / 100}%`} />
         </dl>
-        {!settled && (
-          <MarketActions marketId={market.id} question={market.question} likeCount={market.like_count} liked={Boolean(likeRow)} />
-        )}
+        <MarketActions marketId={market.id} question={market.question} likeCount={market.like_count} liked={Boolean(likeRow)} />
       </section>
 
       {market.details && (

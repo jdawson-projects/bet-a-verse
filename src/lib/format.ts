@@ -28,16 +28,20 @@ export function timeAgo(iso: string, now: number = Date.now()): string {
   if (h < 24) return `${h}h`;
   const d = Math.round(h / 24);
   if (d < 7) return `${d}d`;
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: SERVER_TIME_ZONE });
 }
 
-export function formatDateTime(iso: string): string {
+/** Server renders use the launch campus's timezone; the client switches to the viewer's after hydration. */
+export const SERVER_TIME_ZONE = "America/Chicago";
+
+export function formatDateTime(iso: string, timeZone?: string): string {
   return new Date(iso).toLocaleString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone,
   });
 }
 

@@ -75,3 +75,22 @@ export function MarketActions({
     </div>
   );
 }
+
+/** A lone share button, e.g. "Share result" on a resolved market's banner. */
+export function ShareButton({ marketId, text, label = "Share" }: { marketId: string; text: string; label?: string }) {
+  const toast = useToast();
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        const r = await shareLink(marketUrl(marketId), text);
+        if (r === "copied") toast.show({ message: "Link copied" });
+        if (r === "failed") toast.show({ message: "Couldn't share that link", tone: "error" });
+      }}
+      className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-900 shadow-sm transition hover:bg-white/90"
+    >
+      <ShareIcon className="h-4 w-4" />
+      {label}
+    </button>
+  );
+}
