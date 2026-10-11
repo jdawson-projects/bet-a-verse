@@ -35,6 +35,11 @@ export function impliedYes(yesTotal: number, noTotal: number): number {
   return (yesTotal + VIRTUAL_LIQUIDITY) / (yesTotal + noTotal + 2 * VIRTUAL_LIQUIDITY);
 }
 
+/** bets.price_at_bet stores the implied YES price; this is the price of the side actually bet. */
+export function sidePrice(priceAtBet: number, side: Side): number {
+  return side === "yes" ? priceAtBet : 1 - priceAtBet;
+}
+
 /** "0.62" */
 export function formatPrice(p: number): string {
   return p.toFixed(2);

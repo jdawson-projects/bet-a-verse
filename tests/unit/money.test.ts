@@ -143,3 +143,11 @@ describe("helpers", () => {
     expect(yesShare(0, 0)).toBeNull();
   });
 });
+
+describe("sidePrice", () => {
+  it("a NO bet placed at implied YES 0.59 shows NO 0.41", async () => {
+    const { sidePrice } = await import("@/lib/money");
+    expect(formatPrice(sidePrice(0.59, "no"))).toBe("0.41");
+    expect(formatPrice(sidePrice(0.59, "yes"))).toBe("0.59");
+  });
+});
