@@ -1,12 +1,24 @@
 // The University of Chicago campus, Hyde Park, as pixel-art geometry.
-// Grid: x east (Ellis → the Metra tracks), y south (55th → 60th Street).
+// Campus grid: x east (Ellis → the Metra tracks), y south (55th → 60th Street).
 // Streets: rows y = 1 (55th), 5 (56th), 9 (57th), 13 (58th), 17 (59th), 21 (60th);
 // columns x = 3 (Ellis), 9 (University), 14 (Woodlawn), 18 (Dorchester).
 // Nothing is to scale; it's a map a student would recognize.
+//
+// The camera looks from the north-east, so Campus North, the Reg, Mansueto's
+// dome and Saieh Hall sit in front and the quad and Rockefeller rise behind.
+// The drawing code (Mesh) assumes a camera at +x+y, so campus coordinates go
+// through `T`/`tb`/`tp` (a y-flip) on the way in.
 
-import { GROUND, project, VIEW_H, VIEW_W, type BoxSpec, type P3, type Pt } from "./iso";
+import { GRID, GROUND, project, VIEW_H, VIEW_W, type BoxSpec, type P3, type Pt } from "./iso";
 import { Mesh } from "./mesh";
 import { hex, mix, type Palette, type RGB, type Shades } from "./palette";
+
+/** Campus (x east, y south) → camera space. */
+export const toScene = (x: number, y: number): Pt => [x, GRID - y];
+const T = toScene;
+const tp = (p: P3): P3 => [p[0], GRID - p[1], p[2]];
+const tpt = (p: Pt): Pt => [p[0], GRID - p[1]];
+const tb = (b: BoxSpec): BoxSpec => ({ ...b, y: GRID - b.y - b.d });
 
 // ---------------------------------------------------------------------------
 // Materials
@@ -22,6 +34,8 @@ const GLASS = hex("#8fb8dc");
 const WHITE = hex("#eef0eb");
 const CONCRETE = hex("#d0cabb");
 const CHIMNEY = hex("#9c8a6e");
+const SHIRTS = ["#7a1d2b", "#1f3a8a", "#f2f2f0", "#f0c330", "#2f7d4f", "#2b3340", "#c45f8a"].map(hex);
+const SKIN = ["#f1c9a5", "#c98a5e", "#8d5a3b", "#5a3a26"].map(hex);
 
 type Skin = "none" | "grid" | "gothic" | "slits";
 
@@ -219,6 +233,32 @@ function turret(m: Mesh, cx: number, cy: number, z: number, h: number, wall: Sha
   m.cone(cx, cy, r + 0.03, z + h, 11, 8, roof);
 }
 
+/** Ivy climbing the two visible walls in a few ragged patches. */
+function ivy(m: Mesh, b: BoxSpec, p: Palette, seed: number) {
+  const dark = mix(p.leaf, p.leafEdge, 0.55);
+  const light = mix(p.leaf, p.leafLight, 0.35);
+  const top = b.z + b.h;
+  let n = seed;
+  const rnd = () => hash((n += 1.7));
+  const patch = (face: "left" | "right", at: number, span: number) => {
+    const reach = top - b.z - 8 - rnd() * 10;
+    for (let z = b.z + 1; z < b.z + reach; z += 2.2) {
+      const taper = 1 - (z - b.z) / reach;
+      const half = span * (0.35 + 0.65 * taper);
+      const count = Math.max(1, Math.round(half * 22));
+      for (let i = 0; i < count; i++) {
+        const o = at + (rnd() - 0.5) * half * 2;
+        const c = rnd() < 0.3 ? light : dark;
+        if (face === "left") m.dot([o, b.y + b.d, z + rnd() * 1.5], 1.5, c, 1, 0.03);
+        else m.dot([b.x + b.w, o, z + rnd() * 1.5], 1.5, c, 1, 0.03);
+      }
+    }
+  };
+  patch("left", b.x + 0.2 + rnd() * (b.w - 0.4), 0.22 + rnd() * 0.15);
+  if (b.w > 1.2) patch("left", b.x + 0.2 + rnd() * (b.w - 0.4), 0.18 + rnd() * 0.12);
+  patch("right", b.y + 0.2 + rnd() * (b.d - 0.4), 0.2 + rnd() * 0.15);
+}
+
 function tree(m: Mesh, p: Palette, x: number, y: number, r = 5) {
   const base: P3 = [x, y, GROUND];
   const topZ = GROUND + 5;
@@ -248,7 +288,7 @@ const add = (id: string, rises: boolean, draw: Prop["draw"]) => props.push({ id,
 
 function building(id: string, b: Omit<BoxSpec, "z">, base: RGB, skin: Skin = "grid") {
   add(id, true, (m, p) => {
-    const spec = { ...b, z: GROUND };
+    const spec = tb({ ...b, z: GROUND });
     m.box(spec, p.shades(base));
     windows(m, spec, skin, p);
   });
@@ -263,13 +303,14 @@ interface GothicOpts {
   chimney?: boolean;
   /** Corners that get a round turret: front-left (D), front (C), right (B). */
   turrets?: ("D" | "C" | "B")[];
+  ivy?: boolean;
 }
 
 /** Gothic hall: cut limestone, paired lancets, buttresses, a door, a clay-tile roof with dormers. */
 function gothic(id: string, b: Omit<BoxSpec, "z">, axis: "x" | "y", rise = 14, opts: GothicOpts = {}) {
-  const { color = LIMESTONE, roof = TILE_ROOF, buttress = true, door: hasDoor = true, dormers: hasDormers = true, chimney: hasChimney = true, turrets = [] } = opts;
+  const { color = LIMESTONE, roof = TILE_ROOF, buttress = true, door: hasDoor = true, dormers: hasDormers = true, chimney: hasChimney = true, turrets = [], ivy: hasIvy = false } = opts;
   add(id, true, (m, p) => {
-    const spec = { ...b, z: GROUND };
+    const spec = tb({ ...b, z: GROUND });
     const s = p.shades(color);
     const rs = p.roofShades(roof);
     m.box(spec, s);
@@ -277,12 +318,13 @@ function gothic(id: string, b: Omit<BoxSpec, "z">, axis: "x" | "y", rise = 14, o
     windows(m, spec, "gothic", p);
     if (buttress) buttresses(m, spec, s);
     if (hasDoor) door(m, spec, s);
+    if (hasIvy) ivy(m, spec, p, spec.x * 3.1 + spec.y);
     m.gable(spec, rise, axis, rs, TILE_ROWS);
     if (hasDormers) dormers(m, spec, axis, rise, s, rs, p);
     if (hasChimney) chimney(m, spec, axis, rise, p);
     for (const corner of turrets) {
-      const cx = corner === "D" ? b.x : b.x + b.w;
-      const cy = corner === "B" ? b.y : b.y + b.d;
+      const cx = corner === "D" ? spec.x : spec.x + spec.w;
+      const cy = corner === "B" ? spec.y : spec.y + spec.d;
       turret(m, cx, cy, GROUND, b.h + rise * 0.6, s, rs, p);
     }
   });
@@ -290,7 +332,7 @@ function gothic(id: string, b: Omit<BoxSpec, "z">, axis: "x" | "y", rise = 14, o
 
 function tower(id: string, b: Omit<BoxSpec, "z">, color = LIMESTONE, pinnacleH = 14, crenellated = true) {
   add(id, true, (m, p) => {
-    const spec = { ...b, z: GROUND };
+    const spec = tb({ ...b, z: GROUND });
     const s = p.shades(color);
     m.box(spec, s);
     courses(m, spec, s);
@@ -302,7 +344,7 @@ function tower(id: string, b: Omit<BoxSpec, "z">, color = LIMESTONE, pinnacleH =
 
 function trees(id: string, list: readonly (readonly [number, number, number?])[]) {
   add(id, true, (m, p) => {
-    for (const [x, y, r] of list) tree(m, p, x, y, r);
+    for (const [x, y, r] of list) tree(m, p, ...T(x, y), r);
   });
 }
 
@@ -325,11 +367,12 @@ const STREET_ROWS = [1, 5, 9, 13, 17, 21];
 const STREET_COLS = [3, 9, 14, 18];
 const EAST_EDGE = 21.6;
 
+/** A flat campus rectangle, in camera space. */
 const flat = (x0: number, y0: number, x1: number, y1: number, z: number): P3[] => [
-  [x0, y0, z],
-  [x1, y0, z],
-  [x1, y1, z],
-  [x0, y1, z],
+  [x0, GRID - y1, z],
+  [x1, GRID - y1, z],
+  [x1, GRID - y0, z],
+  [x0, GRID - y0, z],
 ];
 
 function seeded(seed: number) {
@@ -341,7 +384,9 @@ function seeded(seed: number) {
 }
 
 /** A narrow path between two ground points. */
-function path(m: Mesh, p: Palette, a: Pt, b: Pt, width = 0.14) {
+function path(m: Mesh, p: Palette, ca: Pt, cb: Pt, width = 0.14) {
+  const a = tpt(ca);
+  const b = tpt(cb);
   const dx = b[0] - a[0];
   const dy = b[1] - a[1];
   const len = Math.hypot(dx, dy) || 1;
@@ -379,7 +424,7 @@ add("ground", false, (m, p) => {
   for (const [x0, y0, x1, y1] of lawns) {
     const n = Math.round((x1 - x0) * (y1 - y0) * 3.2);
     for (let i = 0; i < n; i++) {
-      m.dot([x0 + rand() * (x1 - x0), y0 + rand() * (y1 - y0), GROUND + 0.05], 1, tuft, 0.8);
+      m.dot(tp([x0 + rand() * (x1 - x0), y0 + rand() * (y1 - y0), GROUND + 0.05]), 1, tuft, 0.8);
     }
   }
 
@@ -395,8 +440,8 @@ add("ground", false, (m, p) => {
   ] as const) {
     path(m, p, corner, c);
   }
-  m.ellipse(c[0], c[1], 0.5, 0.5, GROUND + 0.07, p.path);
-  m.ellipse(c[0], c[1], 0.3, 0.3, GROUND + 0.09, p.park);
+  m.ellipse(...T(c[0], c[1]), 0.5, 0.5, GROUND + 0.07, p.path);
+  m.ellipse(...T(c[0], c[1]), 0.3, 0.3, GROUND + 0.09, p.park);
   path(m, p, [10.3, 16.9], [13.7, 14.3], 0.12);
   path(m, p, [10.3, 14.3], [13.7, 16.9], 0.12);
 
@@ -404,40 +449,41 @@ add("ground", false, (m, p) => {
   for (const y of STREET_ROWS) m.poly(flat(0, y, EAST_EDGE, y + 1, GROUND + 0.05), p.street);
   for (const x of STREET_COLS) m.poly(flat(x, 0, x + 1, 24, GROUND + 0.05), p.street);
   for (const y of STREET_ROWS) {
-    for (let x = 0.4; x < EAST_EDGE - 0.5; x += 0.8) m.line([x, y + 0.5, GROUND + 0.08], [x + 0.32, y + 0.5, GROUND + 0.08], 1, p.dash);
+    for (let x = 0.4; x < EAST_EDGE - 0.5; x += 0.8) m.line(tp([x, y + 0.5, GROUND + 0.08]), tp([x + 0.32, y + 0.5, GROUND + 0.08]), 1, p.dash);
   }
   for (const x of STREET_COLS) {
-    for (let y = 0.4; y < 23.6; y += 0.8) m.line([x + 0.5, y, GROUND + 0.08], [x + 0.5, y + 0.32, GROUND + 0.08], 1, p.dash);
+    for (let y = 0.4; y < 23.6; y += 0.8) m.line(tp([x + 0.5, y, GROUND + 0.08]), tp([x + 0.5, y + 0.32, GROUND + 0.08]), 1, p.dash);
   }
 
   // Stagg Field: track oval, bleachers, goalposts
-  m.ellipse(1.7, 3.5, 1.08, 1.12, GROUND + 0.07, p.track);
-  m.ellipse(1.7, 3.5, 0.84, 0.88, GROUND + 0.09, p.park);
-  m.ellipse(1.7, 3.5, 0.8, 0.84, GROUND + 0.1, p.fieldLine, 0.9);
-  m.ellipse(1.7, 3.5, 0.74, 0.78, GROUND + 0.11, p.park);
-  m.box({ x: 0.25, y: 2.5, w: 0.3, d: 2, z: GROUND, h: 10 }, p.shades(hex("#8d94a3")));
+  const stagg = T(1.7, 3.5);
+  m.ellipse(...stagg, 1.08, 1.12, GROUND + 0.07, p.track);
+  m.ellipse(...stagg, 0.84, 0.88, GROUND + 0.09, p.park);
+  m.ellipse(...stagg, 0.8, 0.84, GROUND + 0.1, p.fieldLine, 0.9);
+  m.ellipse(...stagg, 0.74, 0.78, GROUND + 0.11, p.park);
+  m.box(tb({ x: 0.25, y: 2.5, w: 0.3, d: 2, z: GROUND, h: 10 }), p.shades(hex("#8d94a3")));
   for (const gx of [1.0, 2.45]) {
-    m.line([gx, 3.5, GROUND], [gx, 3.5, GROUND + 9], 1, p.fieldLine);
-    m.line([gx - 0.18, 3.5, GROUND + 9], [gx + 0.18, 3.5, GROUND + 9], 1, p.fieldLine);
+    m.line(tp([gx, 3.5, GROUND]), tp([gx, 3.5, GROUND + 9]), 1, p.fieldLine);
+    m.line(tp([gx - 0.18, 3.5, GROUND + 9]), tp([gx + 0.18, 3.5, GROUND + 9]), 1, p.fieldLine);
   }
 
   // Botany Pond, the Law School pool and fountain, the Midway rink
-  m.ellipse(7.3, 11.7, 0.5, 0.4, GROUND + 0.07, p.waterRim);
-  m.ellipse(7.3, 11.7, 0.42, 0.32, GROUND + 0.09, p.water);
-  m.ellipse(12.0, 22.45, 1.38, 0.34, GROUND + 0.07, p.waterRim);
-  m.ellipse(12.0, 22.45, 1.24, 0.25, GROUND + 0.09, p.water);
-  m.dot([12.0, 22.45, GROUND + 5], 2, p.fountain);
-  m.dot([11.9, 22.45, GROUND + 3], 1, p.fountain);
-  m.dot([12.1, 22.45, GROUND + 3], 1, p.fountain);
-  m.ellipse(13.5, 19.5, 1.25, 0.58, GROUND + 0.07, mix(p.rink, p.land, 0.4));
-  m.ellipse(13.5, 19.5, 1.1, 0.48, GROUND + 0.09, p.rink);
+  m.ellipse(...T(7.3, 11.7), 0.5, 0.4, GROUND + 0.07, p.waterRim);
+  m.ellipse(...T(7.3, 11.7), 0.42, 0.32, GROUND + 0.09, p.water);
+  m.ellipse(...T(12.0, 22.45), 1.38, 0.34, GROUND + 0.07, p.waterRim);
+  m.ellipse(...T(12.0, 22.45), 1.24, 0.25, GROUND + 0.09, p.water);
+  m.dot(tp([12.0, 22.45, GROUND + 5]), 2, p.fountain);
+  m.dot(tp([11.9, 22.45, GROUND + 3]), 1, p.fountain);
+  m.dot(tp([12.1, 22.45, GROUND + 3]), 1, p.fountain);
+  m.ellipse(...T(13.5, 19.5), 1.25, 0.58, GROUND + 0.07, mix(p.rink, p.land, 0.4));
+  m.ellipse(...T(13.5, 19.5), 1.1, 0.48, GROUND + 0.09, p.rink);
 
   // The Metra embankment with two tracks and the 59th Street shelter
   const bermTop = GROUND + 14;
-  m.box({ x: 21.6, y: 0, w: 1.2, d: 24, z: GROUND, h: 14 }, p.shades(p.berm));
-  for (let y = 0.3; y < 24; y += 0.5) m.line([21.8, y, bermTop + 0.1], [22.6, y, bermTop + 0.1], 1, p.tie, 0.8, 0.02);
-  for (const x of [21.95, 22.45]) m.line([x, 0, bermTop + 0.2], [x, 24, bermTop + 0.2], 1, p.rail, 1, 0.03);
-  m.box({ x: 21.75, y: 16.6, w: 0.35, d: 1.1, z: bermTop, h: 9 }, p.shades(hex("#7f1d1d")));
+  m.box(tb({ x: 21.6, y: 0, w: 1.2, d: 24, z: GROUND, h: 14 }), p.shades(p.berm));
+  for (let y = 0.3; y < 24; y += 0.5) m.line(tp([21.8, y, bermTop + 0.1]), tp([22.6, y, bermTop + 0.1]), 1, p.tie, 0.8, 0.02);
+  for (const x of [21.95, 22.45]) m.line(tp([x, 0, bermTop + 0.2]), tp([x, 24, bermTop + 0.2]), 1, p.rail, 1, 0.03);
+  m.box(tb({ x: 21.75, y: 16.6, w: 0.35, d: 1.1, z: bermTop, h: 9 }), p.shades(hex("#7f1d1d")));
 });
 
 // ---------------------------------------------------------------------------
@@ -456,15 +502,15 @@ building("logan-wing", { x: 1.8, y: 22.3, w: 1.0, d: 1.4, h: 26 }, CONCRETE, "gr
 
 // Ratner: a low hall with masts and cables over the roof
 add("ratner", true, (m, p) => {
-  const b: BoxSpec = { x: 4.3, y: 2.4, w: 4.2, d: 2.2, z: GROUND, h: 30 };
+  const b = tb({ x: 4.3, y: 2.4, w: 4.2, d: 2.2, z: GROUND, h: 30 });
   m.box(b, p.shades(hex("#e0e4e5")));
   windows(m, b, "slits", p);
   const cable = mix(p.shades(WHITE).right, p.land, 0.3);
   for (const x of [5.2, 6.4, 7.6]) {
-    const top: P3 = [x, 3.5, GROUND + 92];
-    m.line([x - 0.9, 2.4, GROUND + 30], top, 1, cable, 0.9);
-    m.line([x + 0.9, 4.6, GROUND + 30], top, 1, cable, 0.9);
-    m.line([x, 3.5, GROUND + 30], top, 2, p.shades(WHITE).top);
+    const top = tp([x, 3.5, GROUND + 92]);
+    m.line(tp([x - 0.9, 2.4, GROUND + 30]), top, 1, cable, 0.9);
+    m.line(tp([x + 0.9, 4.6, GROUND + 30]), top, 1, cable, 0.9);
+    m.line(tp([x, 3.5, GROUND + 30]), top, 2, p.shades(WHITE).top);
   }
 });
 
@@ -476,8 +522,7 @@ building("reg", { x: 4.2, y: 7.4, w: 3.2, d: 1.5, h: 60 }, hex("#d8d1bf"), "slit
 
 // Mansueto: a glass dome beside the Reg
 add("mansueto", true, (m, p) => {
-  const cx = 8.15;
-  const cy = 8.15;
+  const [cx, cy] = T(8.15, 8.15);
   const r = 0.66;
   const rings = 7;
   const glass = p.shades(p.glass);
@@ -491,14 +536,14 @@ add("mansueto", true, (m, p) => {
 });
 
 // The main quad: long gothic ranges around the lawn
-gothic("snell-hitchcock", { x: 4.2, y: 10.2, w: 1.9, d: 0.9, h: 42 }, "x", 14, { turrets: ["D"] });
-gothic("hull", { x: 6.3, y: 10.2, w: 0.9, d: 0.9, h: 38 }, "x", 12, { dormers: false });
+gothic("snell-hitchcock", { x: 4.2, y: 10.2, w: 1.9, d: 0.9, h: 42 }, "x", 14, { turrets: ["D"], ivy: true });
+gothic("hull", { x: 6.3, y: 10.2, w: 0.9, d: 0.9, h: 38 }, "x", 12, { dormers: false, ivy: true });
 gothic("reynolds", { x: 7.4, y: 10.2, w: 1.4, d: 0.9, h: 46 }, "x", 15, { door: false });
 tower("mitchell", { x: 8.1, y: 10.2, w: 0.7, d: 0.7, h: 118 }, LIMESTONE, 12);
-gothic("cobb", { x: 4.2, y: 11.4, w: 0.9, d: 2.1, h: 48 }, "y", 14, { turrets: ["D"] });
-gothic("ryerson", { x: 4.2, y: 13.8, w: 0.9, d: 1.6, h: 44 }, "y", 13, { door: false });
-gothic("swift", { x: 7.9, y: 11.4, w: 0.9, d: 1.5, h: 46 }, "y", 14, { door: false, turrets: ["B"] });
-gothic("classics", { x: 7.9, y: 13.2, w: 0.9, d: 2.1, h: 42 }, "y", 13, { turrets: ["C"] });
+gothic("cobb", { x: 4.2, y: 11.4, w: 0.9, d: 2.1, h: 48 }, "y", 14, { turrets: ["D"], ivy: true });
+gothic("ryerson", { x: 4.2, y: 13.8, w: 0.9, d: 1.6, h: 44 }, "y", 13, { door: false, ivy: true });
+gothic("swift", { x: 7.9, y: 11.4, w: 0.9, d: 1.5, h: 46 }, "y", 14, { door: false, turrets: ["B"], ivy: true });
+gothic("classics", { x: 7.9, y: 13.2, w: 0.9, d: 2.1, h: 42 }, "y", 13, { turrets: ["C"], ivy: true });
 gothic("harper", { x: 5.4, y: 15.6, w: 2.2, d: 1.2, h: 52 }, "x", 17);
 tower("harper-w", { x: 4.4, y: 15.6, w: 1.0, d: 1.2, h: 108 });
 tower("harper-e", { x: 7.6, y: 15.6, w: 1.0, d: 1.2, h: 108 });
@@ -512,15 +557,16 @@ add("campus-north", true, (m, p) => {
   const s = p.shades(WHITE);
   for (const b of [
     { x: 10.3, y: 2.3, w: 3.4, d: 2.4, z: GROUND, h: 22 },
-    { x: 10.4, y: 2.4, w: 1.2, d: 2.2, z: GROUND + 22, h: 88 },
+    { x: 10.4, y: 2.4, w: 1.2, d: 2.2, z: GROUND + 22, h: 64 },
   ]) {
-    m.box(b, s);
-    windows(m, b, "grid", p);
+    const spec = tb(b);
+    m.box(spec, s);
+    windows(m, spec, "grid", p);
   }
 });
 gothic("crown-fieldhouse", { x: 10.3, y: 6.2, w: 3.4, d: 1.0, h: 36 }, "x", 14, { door: false });
-gothic("bartlett", { x: 10.3, y: 7.6, w: 2.2, d: 1.2, h: 46 }, "x", 15, { turrets: ["C"] });
-gothic("saieh-main", { x: 11.4, y: 10.3, w: 2.1, d: 0.9, h: 42 }, "x", 14);
+gothic("bartlett", { x: 10.3, y: 7.6, w: 2.2, d: 1.2, h: 46 }, "x", 15, { turrets: ["C"], ivy: true });
+gothic("saieh-main", { x: 11.4, y: 10.3, w: 2.1, d: 0.9, h: 42 }, "x", 14, { ivy: true });
 gothic("saieh-wing", { x: 10.3, y: 10.3, w: 0.9, d: 1.3, h: 42 }, "y", 14, { door: false });
 tower("saieh-tower", { x: 10.3, y: 11.7, w: 1.0, d: 1.0, h: 122 }, LIMESTONE_DARK, 12);
 gothic("oriental-institute", { x: 11.9, y: 11.8, w: 1.8, d: 1.0, h: 40 }, "x", 13, { color: LIMESTONE_DARK, dormers: false });
@@ -541,8 +587,8 @@ gothic("hall-58th", { x: 15.2, y: 10.3, w: 2.4, d: 0.8, h: 36 }, "x", 13, { door
 add("robie", true, (m, p) => {
   const brick = p.shades(BRICK);
   const roof = p.shades(hex("#6f5040"));
-  const base: BoxSpec = { x: 15.3, y: 12.0, w: 2.0, d: 0.75, z: GROUND, h: 12 };
-  const upper: BoxSpec = { x: 15.9, y: 12.1, w: 1.1, d: 0.55, z: GROUND + 15, h: 10 };
+  const base = tb({ x: 15.3, y: 12.0, w: 2.0, d: 0.75, z: GROUND, h: 12 });
+  const upper = tb({ x: 15.9, y: 12.1, w: 1.1, d: 0.55, z: GROUND + 15, h: 10 });
   const slab = (b: BoxSpec, over: number, z: number) =>
     m.box({ x: b.x - over, y: b.y - over * 0.6, w: b.w + over * 2, d: b.d + over * 1.2, z, h: 2.5 }, roof);
   m.box(base, brick);
@@ -555,19 +601,19 @@ add("robie", true, (m, p) => {
 
 // Booth: a glass box under a white roof slab on posts
 add("booth", true, (m, p) => {
-  const b: BoxSpec = { x: 15.2, y: 14.2, w: 2.6, d: 1.4, z: GROUND, h: 44 };
+  const b = tb({ x: 15.2, y: 14.2, w: 2.6, d: 1.4, z: GROUND, h: 44 });
   m.box(b, p.shades(GLASS));
   windows(m, b, "grid", p);
   const top = GROUND + 44;
   const post = p.shades(hex("#c9d1d8")).left;
   for (const [x, y] of [
-    [15.15, 15.7],
-    [17.85, 15.7],
+    [15.15, 14.1],
     [17.85, 14.1],
+    [17.85, 15.7],
   ] as const) {
-    m.line([x, y, top], [x, y, top + 5], 1, post);
+    m.line(tp([x, y, top]), tp([x, y, top + 5]), 1, post);
   }
-  m.box({ x: 15.0, y: 14.0, w: 3.0, d: 1.8, z: top + 5, h: 3 }, p.shades(hex("#f4f5f2")));
+  m.box(tb({ x: 15.0, y: 14.0, w: 3.0, d: 1.8, z: top + 5, h: 3 }), p.shades(hex("#f4f5f2")));
 });
 
 gothic("ida-noyes", { x: 15.2, y: 15.9, w: 2.3, d: 0.9, h: 34 }, "x", 13, { color: hex("#a35b45"), buttress: false });
@@ -717,7 +763,8 @@ export interface VehicleSpec {
   cabin?: boolean;
 }
 
-const loop = (...pts: Pt[]): Pt[] => pts;
+/** A closed loop given in campus coordinates. */
+const loop = (...pts: Pt[]): Pt[] => pts.map(tpt);
 
 export const VEHICLES: readonly VehicleSpec[] = [
   { id: "bus55", path: loop([0.3, 1.3], [21.2, 1.3], [21.2, 1.7], [0.3, 1.7]), speed: 2.0, offset: 6, z: GROUND, len: 1.15, wid: 0.42, h: 11, color: hex("#f3f4f6"), band: hex("#2b5fd9") },
@@ -772,8 +819,86 @@ export function poseAt(v: VehicleSpec, t: number): BoxSpec {
   return { x: cx - w / 2, y: cy - d / 2, w, d, z: v.z, h: v.h };
 }
 
+// Students: a head over a shirt, two pixels tall, walking the quad and the Midway.
+interface Walker {
+  path: readonly Pt[];
+  lens: number[];
+  speed: number;
+  offset: number;
+  shirt: RGB;
+  skin: RGB;
+}
+
+const WALKERS: readonly Walker[] = (() => {
+  const rand = seeded(23);
+  const routes: Pt[][] = [
+    loop([6.5, 10.1], [6.5, 16.9]),
+    loop([6.44, 16.9], [6.44, 10.1]),
+    loop([4.1, 13.4], [8.9, 13.4]),
+    loop([8.9, 13.46], [4.1, 13.46]),
+    loop([4.3, 10.3], [6.5, 13.4], [8.7, 16.7]),
+    loop([8.7, 10.3], [6.5, 13.4], [4.3, 16.7]),
+    loop([4.3, 16.7], [6.5, 13.4]),
+    loop([8.7, 10.3], [6.5, 13.4]),
+    loop([0.5, 17.9], [21.4, 17.9]),
+    loop([21.4, 18.05], [0.5, 18.05]),
+    loop([0.5, 21.1], [21.4, 21.1]),
+    loop([9.9, 5.2], [9.9, 16.8]),
+    loop([13.9, 16.8], [13.9, 5.2]),
+    loop([4.0, 9.2], [13.6, 9.2]),
+    loop([13.6, 9.8], [4.0, 9.8]),
+    loop([10.3, 16.9], [13.7, 14.3]),
+    loop([13.7, 16.9], [10.3, 14.3]),
+    loop([7.8, 9.2], [8.2, 7.2]),
+  ];
+  const out: Walker[] = [];
+  for (const route of routes) {
+    const n = 1 + Math.floor(rand() * 2.5);
+    for (let i = 0; i < n; i++) {
+      out.push({
+        path: route,
+        lens: pathLengths(route),
+        speed: 0.45 + rand() * 0.35,
+        offset: rand() * 30,
+        shirt: SHIRTS[Math.floor(rand() * SHIRTS.length)],
+        skin: SKIN[Math.floor(rand() * SKIN.length)],
+      });
+    }
+  }
+  return out;
+})();
+
+/** A point along a closed polyline, `dist` tiles from its start. */
+function pointAt(path: readonly Pt[], lens: number[], dist: number): Pt {
+  const total = lens.reduce((a, b) => a + b, 0);
+  let d = dist % total;
+  if (d < 0) d += total;
+  let i = 0;
+  while (d > lens[i]) {
+    d -= lens[i];
+    i = (i + 1) % lens.length;
+  }
+  const a = path[i];
+  const b = path[(i + 1) % path.length];
+  const u = lens[i] === 0 ? 0 : d / lens[i];
+  return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
+}
+
+function buildWalkers(m: Mesh, p: Palette, t: number) {
+  for (const w of WALKERS) {
+    const [x, y] = pointAt(w.path, w.lens, w.offset + w.speed * t);
+    const bob = Math.abs(Math.sin((t * w.speed * 9) % Math.PI)) * 0.5;
+    const shirt = p.night ? mix(w.shirt, hex("#0a0e1a"), 0.45) : w.shirt;
+    const head = p.night ? mix(w.skin, hex("#0a0e1a"), 0.4) : w.skin;
+    m.dot([x, y, GROUND + 1.6 + bob], 2.3, shirt, 1, 0.08);
+    m.dot([x, y, GROUND + 4.6 + bob], 1.6, head, 1, 0.09);
+    m.dot([x, y, GROUND + 0.4 + bob * 0.5], 1.4, mix(shirt, hex("#000000"), 0.6), 1, 0.08);
+  }
+}
+
 export function buildVehicles(m: Mesh, p: Palette, t: number) {
   m.reset();
+  buildWalkers(m, p, t);
   for (const v of VEHICLES) {
     const box = poseAt(v, t);
     m.box(box, p.shades(v.color));

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { City } from "@/components/city/city";
 import { percent, project, VIEW_H, VIEW_W } from "@/components/city/iso";
-import { ANCHORS, CATEGORY_ANCHOR, type Anchor } from "@/components/city/scene";
+import { ANCHORS, CATEGORY_ANCHOR, toScene, type Anchor } from "@/components/city/scene";
 import { formatCoins } from "@/lib/format";
 import { formatPrice, impliedYes } from "@/lib/money";
 import type { Database } from "@/lib/database.types";
@@ -16,7 +16,7 @@ const MIN_GAP = 14.5;
 const MOBILE_BUBBLES = 3;
 
 function bubblePos(a: Anchor) {
-  const [px, py] = project(a.x, a.y, a.z);
+  const [px, py] = project(...toScene(a.x, a.y), a.z);
   return { x: (px / VIEW_W) * 100, y: (py / VIEW_H) * 100 };
 }
 
@@ -62,6 +62,8 @@ export function placeBubbles(markets: readonly LandingMarket[]): { anchor: Ancho
   const out: { anchor: Anchor; market: LandingMarket }[] = [];
   for (const c of candidates) {
     if (out.length >= MAX_BUBBLES) break;
+    // A bubble hangs above its anchor; anchors near the top edge would float off the map.
+    if (bubblePos(c.anchor).y < 14) continue;
     if (farEnough(c.anchor, out.map((o) => o.anchor))) out.push(c);
   }
   return out;
@@ -83,7 +85,7 @@ export function CampusMap({ markets }: { markets: readonly LandingMarket[] }) {
       <City className={styles.city} />
       {bubbles.map(({ anchor, market }, i) => {
         const p = impliedYes(market.yes_total, market.no_total);
-        const pos = percent(anchor.x, anchor.y, anchor.z);
+        const pos = percent(...toScene(anchor.x, anchor.y), anchor.z);
         return (
           <Link
             key={market.id}

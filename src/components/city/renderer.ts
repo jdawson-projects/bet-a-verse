@@ -43,7 +43,8 @@ class GLRenderer implements Renderer {
   private uView: WebGLUniformLocation;
 
   constructor(private canvas: HTMLCanvasElement) {
-    const gl = canvas.getContext("webgl", { antialias: false, alpha: true, premultipliedAlpha: false, depth: true });
+    // preserveDrawingBuffer so the map can be saved or copied as an image.
+    const gl = canvas.getContext("webgl", { antialias: false, alpha: true, premultipliedAlpha: false, depth: true, preserveDrawingBuffer: true });
     if (!gl) throw new Error("no webgl");
     this.gl = gl;
     const program = gl.createProgram()!;
