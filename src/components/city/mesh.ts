@@ -189,11 +189,11 @@ export class Mesh {
     this.line(r1, [b.x + b.w, b.y, t], 1, s.edge, 1, 0.04);
   }
 
-  /** A regular n-sided tower (turrets). Sides are shaded by which way they face. */
-  prism(cx: number, cy: number, r: number, z: number, h: number, n: number, s: Shades) {
+  /** A regular n-sided tower (turrets). Sides are shaded by which way they face. `phase` rotates it. */
+  prism(cx: number, cy: number, r: number, z: number, h: number, n: number, s: Shades, phase = 0) {
     const ring = (zz: number): P3[] =>
       Array.from({ length: n }, (_, i) => {
-        const a = ((i + 0.5) / n) * Math.PI * 2;
+        const a = ((i + 0.5) / n) * Math.PI * 2 + phase;
         return [cx + r * Math.cos(a), cy + r * Math.sin(a), zz];
       });
     const bottom = ring(z);

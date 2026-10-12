@@ -31,7 +31,6 @@ const SLATE = hex("#5a6374");
 const BRICK = hex("#a4523d");
 const CONCRETE = hex("#d6d0c0");
 const CHIMNEY = hex("#9c8a6e");
-const TIMBER = hex("#4a3426");
 const SHIRTS = ["#7a1d2b", "#1f3a8a", "#f2f2f0", "#f0c330", "#2f7d4f", "#2b3340", "#c45f8a"].map(hex);
 const SKIN = ["#f1c9a5", "#c98a5e", "#8d5a3b", "#5a3a26"].map(hex);
 
@@ -293,19 +292,6 @@ function roseWindow(m: Mesh, b: BoxSpec, z: number, r: number, s: Shades, p: Pal
   ring(r * 0.3, s.top, 1, 0.045);
 }
 
-/** Dark timber framing on the upper walls (Tudor). */
-function halfTimber(m: Mesh, b: BoxSpec, p: Palette) {
-  const c = p.night ? mix(TIMBER, hex("#05070f"), 0.5) : TIMBER;
-  const top = b.z + b.h;
-  const z0 = b.z + b.h * 0.55;
-  const yL = b.y + b.d;
-  m.line([b.x, yL, z0], [b.x + b.w, yL, z0], 1, c, 1, 0.025);
-  for (let x = b.x + 0.1; x < b.x + b.w; x += 0.2) m.line([x, yL, z0], [x, yL, top - 1], 1, c, 1, 0.025);
-  const xR = b.x + b.w;
-  m.line([xR, yL, z0], [xR, b.y, z0], 1, c, 1, 0.025);
-  for (let y = b.y + 0.1; y < yL; y += 0.2) m.line([xR, y, z0], [xR, y, top - 1], 1, c, 1, 0.025);
-}
-
 function tree(m: Mesh, p: Palette, x: number, y: number, r = 6) {
   const base: P3 = [x, y, GROUND];
   const topZ = GROUND + 6;
@@ -475,6 +461,7 @@ add("ground", false, (m, p) => {
   park(12.2, 10.6, 15.9, 14, 0.85); // Rockefeller's lawn
   park(12.2, 6.7, 15.9, 7.3, 0.8);
   park(16.6, 6.7, GRID, 10.5, 0.8); // the green north of Robie
+  park(16.6, 13.3, GRID, 14, 0.8);
   park(0, 0, 9.3, 5.8, 0.7); // the field by Ratner
   park(0, 6.7, 2, 14, 0.8);
   park(17.4, 0, GRID, 5.8, 0.75); // east green by Mansueto
@@ -825,24 +812,6 @@ add("robie", true, (m, p) => {
   }
 });
 
-// --- Ida Noyes Hall, Tudor brick with the Pub in the basement ----------------
-add("ida-noyes", true, (m, p) => {
-  const brick = p.shades(hex("#a35b45"));
-  const roof = p.roofShades(TILE_ROOF);
-  const b = tb({ x: 16.9, y: 13.0, w: 3.0, d: 1.0, z: GROUND, h: 40 });
-  m.box(b, brick);
-  windows(m, b, "gothic", p);
-  halfTimber(m, b, p);
-  door(m, b, brick, 0.2, 9);
-  m.gable(b, 18, "x", roof, TILE_ROWS);
-  dormers(m, b, "x", 18, brick, roof, p);
-  chimney(m, b, "x", 18, p, 0.8);
-  const tw = tb({ x: 19.1, y: 13.0, w: 0.8, d: 0.8, z: GROUND, h: 72 });
-  m.box(tw, brick);
-  windows(m, tw, "gothic", p);
-  merlons(m, tw, brick);
-});
-
 // --- Trees ------------------------------------------------------------------
 trees("quad-trees", [
   [5.2, 8.1, 6],
@@ -883,36 +852,84 @@ trees("misc-trees", [
   [5.5, 19.8, 6],
 ]);
 
-// --- Booth: just the winter garden, a glass pavilion on four spiral columns ---
+// --- Booth: the winter garden, a glass pavilion on four twisting columns ---
 // Drawn last so what stands behind it shows through the glass.
 add("booth", true, (m, p) => {
   const white = p.shades(hex("#f1f2ef"));
   const glass = p.shades(p.glass);
   const mullion = p.night ? mix(p.glass, hex("#ffffff"), 0.3) : mix(p.glass, hex("#1b3450"), 0.5);
-  const column = p.shades(hex("#5a6780"));
-  const strand = hex("#ffffff");
+  // The columns are bright white, so they need real shadow sides and dark
+  // edges to read through the glass; night dims them to a warm grey.
+  const columnBase = p.night ? hex("#c9ccd4") : hex("#ffffff");
+  const column: Shades = {
+    top: columnBase,
+    left: mix(columnBase, hex("#5b6478"), p.night ? 0.3 : 0.22),
+    right: mix(columnBase, hex("#2b3344"), p.night ? 0.55 : 0.45),
+    edge: mix(columnBase, hex("#1b2436"), 0.7),
+  };
 
-  const wg = tb({ x: 17.2, y: 10.4, w: 2.4, d: 2.0, z: GROUND, h: 74 });
+  const wg = tb({ x: 16.9, y: 10.3, w: 3.4, d: 3.0, z: GROUND, h: 92 });
   const top = wg.z + wg.h;
   // Plinth and floor slab
   m.box({ x: wg.x - 0.15, y: wg.y - 0.15, w: wg.w + 0.3, d: wg.d + 0.3, z: GROUND, h: 2.5 }, white);
+  // The far walls, drawn first and very faint, so the pavilion reads as a volume behind the columns
+  m.poly([[wg.x, wg.y, wg.z], [wg.x + wg.w, wg.y, wg.z], [wg.x + wg.w, wg.y, top], [wg.x, wg.y, top]], glass.left, 0.1, 0.08);
+  m.poly([[wg.x, wg.y, wg.z], [wg.x, wg.y + wg.d, wg.z], [wg.x, wg.y + wg.d, top], [wg.x, wg.y, top]], glass.right, 0.1, 0.08);
+  m.line([wg.x, wg.y, wg.z], [wg.x, wg.y, top], 1.2, white.right, 0.7, 0.09);
 
-  // Four spiral columns: a shaft with two white strands twisting up, branching to the roof
-  const spiral = (cx: number, cy: number) => {
-    m.prism(cx, cy, 0.11, GROUND, top - 12, 6, column);
-    for (let z = GROUND + 3; z < top - 14; z += 1.2) {
-      const a = (z / 6) * Math.PI;
-      m.dot([cx + 0.15 * Math.cos(a), cy + 0.15 * Math.sin(a), z], 2.6, strand, 1, 0.1);
-      m.dot([cx + 0.15 * Math.cos(a + Math.PI), cy + 0.15 * Math.sin(a + Math.PI), z], 2.6, mix(strand, column.left, 0.45), 1, 0.1);
+  // Four square columns that twist a quarter turn as they rise, then branch
+  // like trees to carry the roof. Each slice is a short square prism rotated
+  // a little more than the one below; the corner lines spiral up the shaft.
+  const twist = (cx: number, cy: number) => {
+    const shaftTop = top - 24;
+    const step = 2;
+    const r = 0.3;
+    const ring = (zz: number, phase: number): P3[] =>
+      Array.from({ length: 4 }, (_, i) => {
+        const a = ((i + 0.5) / 4) * Math.PI * 2 + phase;
+        return [cx + r * Math.cos(a), cy + r * Math.sin(a), zz];
+      });
+    const phaseAt = (z: number) => (((z - GROUND) / (shaftTop - GROUND)) * Math.PI) / 2;
+    for (let z = GROUND + 2; z < shaftTop; z += step) {
+      const z1 = Math.min(z + step, shaftTop);
+      const b = ring(z, phaseAt(z));
+      const u = ring(z1, phaseAt(z1));
+      for (let i = 0; i < 4; i++) {
+        const j = (i + 1) % 4;
+        // Which way this face points, in camera space: toward the camera is lit
+        const nx = (b[i][1] - b[j][1]);
+        const ny = -(b[i][0] - b[j][0]);
+        const facing = (nx + ny) / Math.hypot(nx, ny);
+        if (facing < -0.15) continue; // back faces are hidden by the front ones
+        const shade = facing > 0.75 ? column.top : facing > 0.25 ? column.left : column.right;
+        m.poly([u[i], u[j], b[j], b[i]], shade, 1, 0.1);
+      }
     }
+    // Spiralling corner edges, drawn as one dark helix per corner
+    for (let i = 0; i < 4; i++) {
+      for (let z = GROUND + 2; z < shaftTop; z += step) {
+        const z1 = Math.min(z + step, shaftTop);
+        const a = ring(z, phaseAt(z))[i];
+        const b = ring(z1, phaseAt(z1))[i];
+        // Only the corners on the camera side of the shaft are visible
+        if (a[0] - cx + (a[1] - cy) < -0.05) continue;
+        m.line(a, b, 1.2, column.edge, 0.9, 0.12);
+      }
+    }
+    // Capital where the shaft meets the branches
+    m.prism(cx, cy, r + 0.05, shaftTop - 1.5, 3, 4, column, Math.PI / 2);
+    // Branches: four arms flaring from the shaft top to the roof plane
     for (const [dx, dy] of [
-      [-0.3, -0.26],
-      [0.3, -0.26],
-      [0.3, 0.26],
-      [-0.3, 0.26],
+      [-0.46, -0.4],
+      [0.46, -0.4],
+      [0.46, 0.4],
+      [-0.46, 0.4],
     ] as const) {
-      m.line([cx, cy, top - 16], [cx + dx, cy + dy, top - 1], 3.2, column.left, 1, 0.1);
-      m.line([cx, cy, top - 16], [cx + dx, cy + dy, top - 1], 1.3, strand, 0.95, 0.11);
+      const a: P3 = [cx, cy, shaftTop];
+      const b: P3 = [cx + dx, cy + dy, top - 1];
+      m.line(a, b, 5.2, column.edge, 1, 0.1);
+      m.line(a, b, 3.4, dx + dy > 0 ? column.left : column.right, 1, 0.11);
+      m.line(a, b, 1.2, column.top, 1, 0.12);
     }
   };
   for (const [fx, fy] of [
@@ -921,33 +938,32 @@ add("booth", true, (m, p) => {
     [0.27, 0.7],
     [0.73, 0.7],
   ] as const) {
-    spiral(wg.x + wg.w * fx, wg.y + wg.d * fy);
+    twist(wg.x + wg.w * fx, wg.y + wg.d * fy);
   }
 
-  // Glass walls, see-through, with sparse mullions and white floor lines
-  const paneL = mix(glass.left, hex("#ffffff"), 0.3);
-  m.poly([[wg.x, wg.y + wg.d, wg.z], [wg.x + wg.w, wg.y + wg.d, wg.z], [wg.x + wg.w, wg.y + wg.d, top], [wg.x, wg.y + wg.d, top]], paneL, 0.3, 0.12);
-  m.poly([[wg.x + wg.w, wg.y + wg.d, wg.z], [wg.x + wg.w, wg.y, wg.z], [wg.x + wg.w, wg.y, top], [wg.x + wg.w, wg.y + wg.d, top]], glass.right, 0.35, 0.12);
-  for (let x = wg.x + 0.15; x < wg.x + wg.w; x += 0.3) m.line([x, wg.y + wg.d, wg.z], [x, wg.y + wg.d, top], 1, mullion, 0.4, 0.13);
-  for (let y = wg.y + 0.15; y < wg.y + wg.d; y += 0.3) m.line([wg.x + wg.w, y, wg.z], [wg.x + wg.w, y, top], 1, mullion, 0.4, 0.13);
-  for (let z = wg.z + 18; z < top; z += 18) {
-    m.line([wg.x, wg.y + wg.d, z], [wg.x + wg.w, wg.y + wg.d, z], 1, white.top, 0.6, 0.13);
-    m.line([wg.x + wg.w, wg.y + wg.d, z], [wg.x + wg.w, wg.y, z], 1, white.top, 0.6, 0.13);
+  // Glass walls, nearly clear so the columns show, with sparse mullions and a white floor line
+  const paneL = mix(glass.left, hex("#ffffff"), 0.35);
+  m.poly([[wg.x, wg.y + wg.d, wg.z], [wg.x + wg.w, wg.y + wg.d, wg.z], [wg.x + wg.w, wg.y + wg.d, top], [wg.x, wg.y + wg.d, top]], paneL, 0.18, 0.12);
+  m.poly([[wg.x + wg.w, wg.y + wg.d, wg.z], [wg.x + wg.w, wg.y, wg.z], [wg.x + wg.w, wg.y, top], [wg.x + wg.w, wg.y + wg.d, top]], glass.right, 0.22, 0.12);
+  for (let x = wg.x + 0.25; x < wg.x + wg.w; x += 0.5) m.line([x, wg.y + wg.d, wg.z], [x, wg.y + wg.d, top], 1, mullion, 0.3, 0.13);
+  for (let y = wg.y + 0.25; y < wg.y + wg.d; y += 0.5) m.line([wg.x + wg.w, y, wg.z], [wg.x + wg.w, y, top], 1, mullion, 0.3, 0.13);
+  for (let z = wg.z + 22; z < top - 4; z += 22) {
+    m.line([wg.x, wg.y + wg.d, z], [wg.x + wg.w, wg.y + wg.d, z], 1, white.top, 0.5, 0.13);
+    m.line([wg.x + wg.w, wg.y + wg.d, z], [wg.x + wg.w, wg.y, z], 1, white.top, 0.5, 0.13);
   }
-  // Corner posts and the eave beam
   for (const [x, y] of [
     [wg.x, wg.y + wg.d],
     [wg.x + wg.w, wg.y + wg.d],
     [wg.x + wg.w, wg.y],
   ] as const) {
-    m.line([x, y, wg.z], [x, y, top], 1.4, white.right, 1, 0.14);
+    m.line([x, y, wg.z], [x, y, top], 1.6, white.right, 1, 0.14);
   }
-  m.box({ x: wg.x - 0.04, y: wg.y - 0.04, w: wg.w + 0.08, d: wg.d + 0.08, z: top, h: 2.2 }, white, { outline: false });
+  m.box({ x: wg.x - 0.04, y: wg.y - 0.04, w: wg.w + 0.08, d: wg.d + 0.08, z: top, h: 2.4 }, white, { outline: false });
 
   // The pitched glass roof with a raised clerestory along the ridge
   const roofGlass = { top: mix(glass.top, hex("#ffffff"), 0.35), left: mix(glass.left, hex("#ffffff"), 0.4), right: mix(glass.right, hex("#ffffff"), 0.2), edge: mullion };
-  m.gable({ ...wg, z: top + 2, h: 0 }, 16, "x", roofGlass, 2.5);
-  m.gable({ x: wg.x + 0.3, y: wg.y + 0.45, w: wg.w - 0.6, d: wg.d - 0.9, z: top + 12, h: 0 }, 10, "x", roofGlass, 2.5);
+  m.gable({ ...wg, z: top + 2, h: 0 }, 22, "x", roofGlass, 2.5);
+  m.gable({ x: wg.x + 0.4, y: wg.y + 0.6, w: wg.w - 0.8, d: wg.d - 1.2, z: top + 16, h: 0 }, 13, "x", roofGlass, 2.5);
 });
 
 export const PROPS: readonly Prop[] = props;
@@ -1364,9 +1380,8 @@ export const ANCHORS: readonly Anchor[] = [
   { id: "mansueto", label: "Mansueto", x: 15.2, y: 3.0, z: 50, keywords: ["mansueto"], primary: true },
   { id: "reg", label: "The Reg", x: 11.2, y: 2.6, z: 96, keywords: ["the reg", "reg hit", "regenstein", "reg ", "min sok lee", "midterm", "econ", "pset", "problem set", "finals", "reading period"], primary: true },
   { id: "ratner", label: "Ratner", x: 5.4, y: 1.6, z: 120, keywords: ["ratner", "squat", "gym", "lap swim", "maroons", "football", "track meet", "intramural"], primary: true },
-  { id: "ida-noyes", label: "Ida Noyes", x: 18.4, y: 13.5, z: 72, keywords: ["the pub", "pub ", "trivia", "doc films", "ida noyes", "pretzel", "screening"], primary: true },
-  { id: "robie", label: "Robie House", x: 18.25, y: 8.75, z: 62, keywords: ["robie", "wright"] },
-  { id: "booth", label: "Booth", x: 18.4, y: 11.4, z: 105, keywords: ["booth", "atrium", "mba", "harper center", "bitcoin", "crypto", "eth"] },
+  { id: "robie", label: "Robie House", x: 18.25, y: 8.75, z: 62, keywords: ["robie", "wright", "doc films", "screening", "the pub", "pub ", "trivia", "pretzel"] },
+  { id: "booth", label: "Booth", x: 18.6, y: 11.8, z: 130, keywords: ["booth", "atrium", "mba", "harper center", "bitcoin", "crypto", "eth"] },
   { id: "cobb", label: "Cobb Hall", x: 3.55, y: 10.9, z: 100, keywords: ["cobb", "sosc", "the core", "quad", "scav", "campus", "hull gate", "botany", "pond"] },
   { id: "midway", label: "The Midway", x: 19.0, y: 16.6, z: 18, keywords: ["rink", "midway", "skating", "sled"] },
   { id: "sky", label: "Hyde Park sky", x: 2.0, y: 16.6, z: 70, keywords: ["rain", "snow", "frost", "weather", "°f", "wind", "sunny"] },
@@ -1377,7 +1392,7 @@ export const CATEGORY_ANCHOR: Record<string, string> = {
   sports: "ratner",
   campus: "reg",
   news: "sky",
-  culture: "ida-noyes",
+  culture: "robie",
   crypto: "booth",
   other: "cobb",
 };
