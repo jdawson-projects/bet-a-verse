@@ -1,10 +1,11 @@
-// The University of Chicago's landmarks as pixel-art geometry: a dozen
+// The University of Chicago's landmarks as pixel-art geometry: the dozen
 // buildings a student would recognize, arranged on a compact block, not a
 // survey of Hyde Park. Campus coordinates run x east, y south on a 22×22 grid.
 //
 // The camera looks from the north-east, so Mansueto's dome and the Reg sit in
-// front, Saieh's tower in the center, the quad and Rockefeller behind, and
-// Logan, B-J and the Law School on the far skyline.
+// front with Ratner's masts beside them, Saieh's tower in the center, the quad
+// and Rockefeller behind, Booth and Robie House down the east side, and
+// downtown as a faint wash on the horizon.
 // The drawing code (Mesh) assumes a camera at +x+y, so campus coordinates go
 // through `T`/`tb`/`tp` (a y-flip) on the way in.
 
@@ -28,8 +29,6 @@ const LIMESTONE_DARK = hex("#cbc2aa");
 const TILE_ROOF = hex("#cf5a2e");
 const SLATE = hex("#5a6374");
 const BRICK = hex("#a4523d");
-const GLASS = hex("#8fb8dc");
-const WHITE = hex("#eef0eb");
 const CONCRETE = hex("#d6d0c0");
 const CHIMNEY = hex("#9c8a6e");
 const TIMBER = hex("#4a3426");
@@ -441,9 +440,8 @@ function treeLine(id: string, from: Pt, to: Pt, step: number, r = 6) {
 // ---------------------------------------------------------------------------
 
 const STREET_W = 0.7;
-// 57th, 59th, 60th; Ellis, University (south of 57th), Woodlawn (south of 57th)
-const ROWS = [6, 14, 18.5];
-const EAST_EDGE = 20.3;
+const ROWS = [6, 14]; // 57th, 59th
+const EAST_EDGE = 21.2;
 
 /** A flat campus rectangle, in camera space. */
 const flat = (x0: number, y0: number, x1: number, y1: number, z: number): P3[] => [
@@ -473,22 +471,23 @@ add("ground", false, (m, p) => {
   // Lawns
   const park = (x0: number, y0: number, x1: number, y1: number, a = 1) => m.poly(flat(x0, y0, x1, y1, GROUND + 0.03), p.park, a);
   park(2.7, 6.7, 11.5, 14); // the quad
-  park(0, 14.7, EAST_EDGE, 18.5); // the Midway
+  park(0, 14.7, GRID, GRID); // the Midway and everything south
   park(12.2, 10.6, 15.9, 14, 0.85); // Rockefeller's lawn
   park(12.2, 6.7, 15.9, 7.3, 0.8);
-  park(16.6, 9.4, 20.3, 10.4, 0.8); // Robie's garden
-  park(0, 0, 9.3, 5.8, 0.7); // north-west green by Ratner
+  park(16.6, 6.7, GRID, 10.5, 0.8); // the green north of Robie
+  park(0, 0, 9.3, 5.8, 0.7); // the field by Ratner
   park(0, 6.7, 2, 14, 0.8);
-  park(17.2, 0.3, 20.3, 5.8, 0.75); // east green by Mansueto
-  park(0, 19.2, EAST_EDGE, GRID, 0.8);
+  park(17.4, 0, GRID, 5.8, 0.75); // east green by Mansueto
 
   const rand = seeded(11);
   const tuft = mix(p.park, p.leafEdge, 0.35);
   for (const [x0, y0, x1, y1] of [
     [3.0, 7.0, 11.2, 13.7],
-    [0.2, 14.9, EAST_EDGE - 0.2, 18.3],
+    [0.2, 14.9, GRID - 0.2, 18.3],
     [12.4, 10.8, 15.7, 13.8],
-    [17.4, 0.5, 20.1, 5.6],
+    [17.6, 0.3, GRID - 0.3, 5.6],
+    [0.3, 3.3, 2.8, 5.6],
+    [0.3, 18.8, GRID - 0.3, GRID - 0.3],
   ] as const) {
     const n = Math.round((x1 - x0) * (y1 - y0) * 2.6);
     for (let i = 0; i < n; i++) m.dot(tp([x0 + rand() * (x1 - x0), y0 + rand() * (y1 - y0), GROUND + 0.05]), 1, tuft, 0.8);
@@ -508,17 +507,18 @@ add("ground", false, (m, p) => {
   }
   m.ellipse(...T(c[0], c[1]), 0.55, 0.55, GROUND + 0.07, p.path);
   m.ellipse(...T(c[0], c[1]), 0.32, 0.32, GROUND + 0.09, p.park);
-  // Mansueto's forecourt and the path along the Midway
-  path(m, p, [15.1, 5.0], [15.1, 6.0], 0.3);
-  path(m, p, [0.3, 16.6], [EAST_EDGE - 0.3, 16.6], 0.16);
+  // Mansueto's forecourt, the Midway promenade, Rockefeller's walk
+  path(m, p, [15.1, 5.1], [15.1, 6.0], 0.3);
+  path(m, p, [0.3, 16.6], [GRID - 0.3, 16.6], 0.16);
   path(m, p, [12.6, 13.9], [14.4, 10.9], 0.14);
+  path(m, p, [9.0, 0.6], [9.0, 5.9], 0.16);
 
   // Streets with center dashes
   const streets: [number, number, number, number][] = [
     ...ROWS.map((y): [number, number, number, number] => [0, y, EAST_EDGE, y + STREET_W]),
-    [2.0, 0, 2.0 + STREET_W, GRID],
-    [11.5, 6, 11.5 + STREET_W, GRID],
-    [15.9, 6, 15.9 + STREET_W, GRID],
+    [2.0, 0, 2.0 + STREET_W, 14.7],
+    [11.5, 6, 11.5 + STREET_W, 14.7],
+    [15.9, 6, 15.9 + STREET_W, 14.7],
   ];
   for (const [x0, y0, x1, y1] of streets) m.poly(flat(x0, y0, x1, y1, GROUND + 0.05), p.street);
   for (const [x0, y0, x1, y1] of streets) {
@@ -544,33 +544,21 @@ add("ground", false, (m, p) => {
     m.dot(tp([6.6 + dx, 9.1 + dy, GROUND + 0.12]), 1.6, p.leafLight, 1, 0.01);
   }
 
-  // The Law School pool and fountain
-  m.ellipse(...T(12.0, 19.6), 1.3, 0.3, GROUND + 0.07, p.waterRim);
-  m.ellipse(...T(12.0, 19.6), 1.16, 0.22, GROUND + 0.09, p.water);
-  m.dot(tp([12.0, 19.6, GROUND + 6]), 2, p.fountain);
-  m.dot(tp([11.9, 19.6, GROUND + 3.5]), 1.2, p.fountain);
-  m.dot(tp([12.1, 19.6, GROUND + 3.5]), 1.2, p.fountain);
-
   // The Midway rink
   m.ellipse(...T(9.5, 16.6), 1.35, 0.6, GROUND + 0.07, mix(p.rink, p.land, 0.4));
   m.ellipse(...T(9.5, 16.6), 1.2, 0.5, GROUND + 0.09, p.rink);
 
-  // The Metra embankment along the east edge, with the 59th Street shelter
-  const bermTop = GROUND + 16;
-  m.box(tb({ x: 20.4, y: 0, w: 1.1, d: GRID, z: GROUND, h: 16 }), p.shades(p.berm));
-  for (let y = 0.3; y < GRID; y += 0.45) m.line(tp([20.55, y, bermTop + 0.1]), tp([21.35, y, bermTop + 0.1]), 1, p.tie, 0.8, 0.02);
-  for (const x of [20.72, 21.18]) m.line(tp([x, 0, bermTop + 0.2]), tp([x, GRID, bermTop + 0.2]), 1, p.rail, 1, 0.03);
-  m.box(tb({ x: 20.5, y: 13.9, w: 0.3, d: 1.0, z: bermTop, h: 10 }), p.shades(hex("#7f1d1d")));
+  // Stagg-side running track in the field by Ratner
+  m.ellipse(...T(1.6, 1.9), 0.95, 0.75, GROUND + 0.07, p.track);
+  m.ellipse(...T(1.6, 1.9), 0.72, 0.52, GROUND + 0.09, p.park);
 });
 
 // ---------------------------------------------------------------------------
 // The landmarks
 // ---------------------------------------------------------------------------
 
-// --- Foreground: Mansueto's dome, the Reg, Max P -------------------------
-
+// --- Mansueto: an elliptical glass dome, long axis toward the viewer ----------
 add("mansueto", true, (m, p) => {
-  // An elliptical dome, long axis running north-south toward the viewer.
   const [cx, cy] = T(15.2, 3.0);
   const rx = 1.2;
   const ry = 1.95;
@@ -606,59 +594,95 @@ add("mansueto", true, (m, p) => {
   }
   m.ellipse(cx, cy, rx * 0.2, ry * 0.2, GROUND + h - 1, glass.top, 1, 0.12, 12);
   m.ellipse(cx + rx * 0.3, cy + ry * 0.35, rx * 0.14, ry * 0.12, GROUND + h * 0.6, hex("#ffffff"), p.night ? 0.25 : 0.55, 0.13, 10);
-  // Concrete base ring and the reading-room link to the Reg
   m.ellipse(cx, cy, rx + 0.12, ry + 0.12, GROUND + 0.04, p.waterRim, 1, 0, 28);
+  // The reading-room link to the Reg
   m.box({ x: cx - rx - 0.75, y: cy - 0.35, w: 0.8, d: 0.7, z: GROUND, h: 12 }, p.shades(CONCRETE));
 });
 
+// --- The Reg: Netsch's brutalist limestone, stepped masses and deep fins -------
 add("reg", true, (m, p) => {
-  const b = tb({ x: 9.6, y: 1.4, w: 3.9, d: 2.9, z: GROUND, h: 70 });
-  const s = p.shades(hex("#d9d2c0"));
-  m.box(b, s);
-  windows(m, b, "slits", p);
-  // Brutalist fins between the slits, and a heavy cornice
-  const fin = p.shades(hex("#c9c2b0"));
-  for (let x = b.x + 0.2; x < b.x + b.w - 0.1; x += 0.42) m.box({ x, y: b.y + b.d, w: 0.08, d: 0.07, z: GROUND, h: 66 }, fin, { outline: false });
-  for (let y = b.y + 0.2; y < b.y + b.d - 0.1; y += 0.42) m.box({ x: b.x + b.w, y, w: 0.07, d: 0.08, z: GROUND, h: 66 }, fin, { outline: false });
-  m.box({ x: b.x - 0.05, y: b.y - 0.05, w: b.w + 0.1, d: b.d + 0.1, z: GROUND + 70, h: 5 }, s);
-  // Recessed entrance
-  door(m, b, s, 0.5, 9);
+  const stone = p.shades(hex("#d9d2c0"));
+  const fin = p.shades(hex("#c7bfac"));
+  const dark = p.shades(hex("#b9b19e"));
+  // Walls of narrow glass slots between heavy limestone fins
+  const ribbed = (b: BoxSpec, finH: number) => {
+    m.box(b, stone);
+    windows(m, b, "slits", p);
+    for (let x = b.x + 0.2; x < b.x + b.w - 0.1; x += 0.36) m.box({ x, y: b.y + b.d, w: 0.09, d: 0.08, z: b.z, h: finH }, fin, { outline: false });
+    for (let y = b.y + 0.2; y < b.y + b.d - 0.1; y += 0.36) m.box({ x: b.x + b.w, y, w: 0.08, d: 0.09, z: b.z, h: finH }, fin, { outline: false });
+    // Cornice band
+    m.box({ x: b.x - 0.04, y: b.y - 0.04, w: b.w + 0.08, d: b.d + 0.08, z: b.z + b.h, h: 4 }, dark);
+  };
+  const main = tb({ x: 9.4, y: 1.3, w: 3.7, d: 2.6, z: GROUND, h: 66 });
+  ribbed(main, 62);
+  // The lower south wing and the entrance block (the A-level) stepping down toward 57th
+  const wing = tb({ x: 9.8, y: 3.9, w: 3.1, d: 0.9, z: GROUND, h: 34 });
+  ribbed(wing, 30);
+  const entrance = tb({ x: 10.6, y: 4.8, w: 1.5, d: 0.5, z: GROUND, h: 18 });
+  m.box(entrance, dark);
+  door(m, entrance, dark, 0.5, 9);
+  // Setback top floor and rooftop plant
+  const upper = tb({ x: 9.9, y: 1.6, w: 2.7, d: 1.9, z: GROUND + 70, h: 16 });
+  ribbed(upper, 13);
+  m.box(tb({ x: 10.3, y: 2.0, w: 0.7, d: 0.5, z: GROUND + 90, h: 6 }), dark, { outline: false });
+  m.box(tb({ x: 11.6, y: 2.3, w: 0.5, d: 0.5, z: GROUND + 90, h: 4 }), dark, { outline: false });
+  // Entrance plaza steps
+  for (let i = 0; i < 3; i++) m.box(tb({ x: 10.4 - i * 0.12, y: 5.3 + i * 0.1, w: 1.9 + i * 0.24, d: 0.1, z: GROUND, h: 2.5 - i * 0.7 }), stone, { outline: false });
 });
 
-for (const [i, c] of ["#d9661f", "#b6433b", "#6e4a8e"].entries()) {
-  add(`maxp-${i}`, true, (m, p) => {
-    const b = tb({ x: 9.6 + i * 1.33, y: 0.25, w: 1.2, d: 0.9, z: GROUND, h: 46 });
-    m.box(b, p.shades(hex(c)));
-    windows(m, b, "grid", p);
-    // Saw-tooth roof
-    m.gable({ ...b, w: b.w / 2 }, 6, "x", p.roofShades(mix(hex(c), hex("#000000"), 0.2)));
-    m.gable({ ...b, x: b.x + b.w / 2, w: b.w / 2 }, 6, "x", p.roofShades(mix(hex(c), hex("#000000"), 0.2)));
-  });
-}
-
-// --- Ratner, far north-west ---------------------------------------------
+// --- Ratner: a glass hall under a cable-hung roof that sags between tall masts ---
 add("ratner", true, (m, p) => {
-  const b = tb({ x: 3.2, y: 0.6, w: 4.6, d: 2.4, z: GROUND, h: 34 });
-  m.box(b, p.shades(hex("#e0e4e5")));
-  windows(m, b, "slits", p);
-  const cable = mix(p.shades(WHITE).right, p.land, 0.3);
-  for (const x of [4.2, 5.5, 6.8]) {
-    const top = tp([x, 1.8, GROUND + 100]);
-    m.line(tp([x - 0.9, 0.6, GROUND + 34]), top, 1, cable, 0.9);
-    m.line(tp([x + 0.9, 3.0, GROUND + 34]), top, 1, cable, 0.9);
-    m.line(tp([x, 1.8, GROUND + 34]), top, 2.2, p.shades(WHITE).top);
+  const base = tb({ x: 3.0, y: 0.5, w: 4.8, d: 2.5, z: GROUND, h: 30 });
+  const glass = p.shades(hex("#a9c6dd"));
+  const steel = p.shades(hex("#e8ebed"));
+  const roofC = p.shades(hex("#c9ced6"));
+  const cable = mix(hex("#9aa3b0"), p.land, 0.2);
+  // Mast positions along the spine (camera x), roof peaks under each
+  const masts = [base.x + 0.7, base.x + 2.4, base.x + 4.1];
+  const spineY = base.y + base.d * 0.45;
+  const roofZ = (x: number) => {
+    // Highest at the masts, sagging to a valley between them
+    let best = 0;
+    for (const mx of masts) best = Math.max(best, Math.max(0, 1 - Math.abs(x - mx) / 0.85));
+    return GROUND + 30 + 16 * best;
+  };
+  // Glass walls with a wavy top edge
+  const steps = 24;
+  const yL = base.y + base.d;
+  for (let i = 0; i < steps; i++) {
+    const x0 = base.x + (base.w * i) / steps;
+    const x1 = base.x + (base.w * (i + 1)) / steps;
+    m.poly([[x0, yL, GROUND], [x1, yL, GROUND], [x1, yL, roofZ(x1) - 3], [x0, yL, roofZ(x0) - 3]], glass.left);
+    m.poly([[x0, yL, roofZ(x0) - 3], [x1, yL, roofZ(x1) - 3], [x1, spineY, roofZ(x1)], [x0, spineY, roofZ(x0)]], roofC.left);
+    m.poly([[x0, spineY, roofZ(x0)], [x1, spineY, roofZ(x1)], [x1, base.y, roofZ(x1) - 3], [x0, base.y, roofZ(x0) - 3]], roofC.top);
+    m.line([x0, yL, roofZ(x0) - 3], [x1, yL, roofZ(x1) - 3], 1, glass.edge, 1, 0.03);
+    m.line([x0, spineY, roofZ(x0)], [x1, spineY, roofZ(x1)], 1, roofC.edge, 1, 0.03);
   }
+  const xR = base.x + base.w;
+  m.poly([[xR, yL, GROUND], [xR, base.y, GROUND], [xR, base.y, roofZ(xR) - 3], [xR, spineY, roofZ(xR)], [xR, yL, roofZ(xR) - 3]], glass.right);
+  // Mullions on the long glass wall
+  for (let x = base.x + 0.15; x < xR; x += 0.15) m.line([x, yL, GROUND], [x, yL, roofZ(x) - 3], 1, glass.edge, 0.45, 0.02);
+  for (let z = GROUND + 6; z < GROUND + 27; z += 6) m.line([base.x, yL, z], [xR, yL, z], 1, glass.edge, 0.45, 0.02);
+  // Masts and the cables fanning to the roof edges
+  for (const mx of masts) {
+    const top: P3 = [mx, spineY, GROUND + 112];
+    m.line([mx, spineY, roofZ(mx)], top, 2.4, steel.top);
+    m.line([mx, spineY, roofZ(mx)], top, 1, steel.edge, 0.5, 0.03);
+    for (const dx of [-0.6, -0.3, 0, 0.3, 0.6]) {
+      m.line(top, [mx + dx, yL, roofZ(mx + dx) - 3], 1, cable, 0.9, 0.02);
+      m.line(top, [mx + dx, base.y, roofZ(mx + dx) - 3], 1, cable, 0.9, 0.02);
+    }
+  }
+  door(m, base, glass, 0.3, 9);
 });
 
 // --- The main quad ---------------------------------------------------------
 
-// North range: Hull Court (ivy, by the pond), Hutchinson Commons, Reynolds Club and Mitchell Tower
 gothic("hull", { x: 4.6, y: 6.9, w: 2.4, d: 1.0, h: 48 }, "x", 16, { ivy: "heavy", turrets: ["D"], chimney: false });
 gothic("hutch", { x: 7.3, y: 6.9, w: 1.8, d: 1.25, h: 56 }, "x", 28, { door: false, dormers: false, tallWindows: true, cappedButtresses: true });
 gothic("reynolds", { x: 9.3, y: 6.9, w: 1.3, d: 1.0, h: 50 }, "x", 16, { dormers: false, ivy: true });
 tower("mitchell", { x: 10.4, y: 6.9, w: 1.0, d: 1.0, h: 150 }, { pinnacles: 20, midPinnacles: true });
 
-// Hull Gate: the arched entrance to the quad from 57th, between two piers
 add("hull-gate", true, (m, p) => {
   const s = p.shades(LIMESTONE_DARK);
   const gate = tb({ x: 6.8, y: 6.8, w: 0.6, d: 0.22, z: GROUND, h: 24 });
@@ -668,37 +692,28 @@ add("hull-gate", true, (m, p) => {
   for (const x of [6.72, 7.32]) m.box(tb({ x, y: 6.76, w: 0.16, d: 0.3, z: GROUND, h: 30 }), s, { inset: 0.02 });
 });
 
-// Lamp posts along the quad paths and the Midway
 add("lamps", true, (m, p) => {
   const pole = p.shades(hex("#3b4150")).left;
   const lamp = p.night ? hex("#ffe9a8") : hex("#fff6d8");
   const spots: Pt[] = [];
   for (let y = 7.6; y < 13.6; y += 1.5) spots.push([7.3, y]);
   for (let x = 3.6; x < 11.2; x += 1.5) spots.push([x, 10.75]);
-  for (let x = 1.0; x < EAST_EDGE; x += 2.0) spots.push([x, 16.85]);
+  for (let x = 1.0; x < GRID; x += 2.0) spots.push([x, 16.85]);
   for (const [x, y] of spots) {
     m.line(tp([x, y, GROUND]), tp([x, y, GROUND + 11]), 1, pole);
     m.dot(tp([x, y, GROUND + 12]), 1.8, lamp, 1, 0.05);
   }
 });
 
-// A flagpole with a maroon flag by Hutch
 add("flag", true, (m, p) => {
   const [x, y] = T(8.6, 8.55);
   m.line([x, y, GROUND], [x, y, GROUND + 52], 1.2, p.shades(hex("#d9dde6")).left);
   m.poly([[x, y, GROUND + 52], [x + 0.42, y, GROUND + 49], [x + 0.42, y, GROUND + 43], [x, y, GROUND + 46]], hex("#7a1d2b"), 1, 0.05);
 });
 
-// West range: Cobb Hall, the oldest building, with its gabled center bay
 gothic("cobb", { x: 2.9, y: 8.3, w: 1.0, d: 5.2, h: 56 }, "y", 16, { ivy: "heavy", turrets: ["D", "C"], chimney: false });
 gothic("cobb-bay", { x: 3.0, y: 10.3, w: 1.15, d: 1.2, h: 72 }, "x", 18, { door: false, dormers: false, buttress: false, chimney: false });
-
-// East range: Classics with its corner turret, and Bond Chapel's little steeple
-gothic("classics", { x: 10.3, y: 8.3, w: 1.05, d: 3.3, h: 54 }, "y", 15, { ivy: true, turrets: ["B"], chimney: false });
-gothic("bond", { x: 10.2, y: 11.9, w: 1.1, d: 1.4, h: 44 }, "y", 20, { door: false, dormers: false, tallWindows: true, cappedButtresses: true, chimney: false });
-tower("bond-steeple", { x: 10.45, y: 12.2, w: 0.45, d: 0.45, h: 70 }, { pinnacles: 0, crenellated: false, belfry: false, spire: 22 });
-
-// South range: Harper Memorial Library with its twin towers and reading-room windows
+gothic("classics", { x: 10.3, y: 8.3, w: 1.05, d: 3.8, h: 54 }, "y", 15, { ivy: true, turrets: ["B"], chimney: false });
 gothic("harper", { x: 4.2, y: 12.5, w: 5.8, d: 1.4, h: 64 }, "x", 20, { tallWindows: true, cappedButtresses: true, ivy: true });
 tower("harper-w", { x: 3.0, y: 12.4, w: 1.25, d: 1.5, h: 128 }, { pinnacles: 18 });
 tower("harper-e", { x: 10.1, y: 12.4, w: 1.25, d: 1.5, h: 128 }, { pinnacles: 18 });
@@ -708,7 +723,6 @@ gothic("saieh-main", { x: 12.4, y: 7.5, w: 3.3, d: 1.1, h: 52 }, "x", 17, { ivy:
 gothic("saieh-wing", { x: 14.6, y: 8.6, w: 1.1, d: 1.6, h: 48 }, "y", 15, { door: false, dormers: false });
 tower("saieh-tower", { x: 12.4, y: 8.6, w: 1.1, d: 1.1, h: 140 }, { color: LIMESTONE_DARK, pinnacles: 14, spire: 26 });
 add("saieh-cloister", true, (m, p) => {
-  // A low arcade around a courtyard garden
   const s = p.shades(LIMESTONE);
   const walls: BoxSpec[] = [
     tb({ x: 12.4, y: 9.7, w: 0.4, d: 0.9, z: GROUND, h: 18 }),
@@ -730,8 +744,6 @@ add("saieh-cloister", true, (m, p) => {
   m.ellipse(...T(13.75, 9.45), 0.25, 0.25, GROUND + 0.08, p.path);
 });
 
-gothic("oriental-institute", { x: 12.5, y: 10.75, w: 3.0, d: 0.72, h: 40 }, "x", 14, { color: LIMESTONE_DARK, roof: SLATE, dormers: false, chimney: false, cappedButtresses: true });
-
 // --- Rockefeller Chapel ------------------------------------------------------
 add("rockefeller", true, (m, p) => {
   const s = p.shades(LIMESTONE);
@@ -742,7 +754,6 @@ add("rockefeller", true, (m, p) => {
   windows(m, nave, "gothic", p, { tall: true });
   buttresses(m, nave, s, true, 0.5);
   m.gable(nave, 34, "x", roof);
-  // Transept crossing the nave, with the rose window on its near end
   const transept = tb({ x: 13.9, y: 11.2, w: 1.2, d: 2.15, z: GROUND, h: 86 });
   m.box(transept, s);
   courses(m, transept, s, 5);
@@ -750,11 +761,9 @@ add("rockefeller", true, (m, p) => {
   m.gable(transept, 34, "y", roof);
   roseWindow(m, transept, GROUND + 58, 13, s, p);
   door(m, transept, s, 0.22, 12);
-  // Finials at the gable ends
   for (const pt of [tp([12.5, 12.27, GROUND + 120]), tp([14.9, 12.27, GROUND + 120]), tp([14.5, 11.2, GROUND + 120])]) {
     m.line(pt, [pt[0], pt[1], pt[2] + 7], 1.2, s.top);
   }
-  // The tower at the east end
   const tw = tb({ x: 15.0, y: 11.5, w: 1.3, d: 1.5, z: GROUND, h: 225 });
   m.box(tw, s);
   courses(m, tw, s, 5);
@@ -772,29 +781,24 @@ add("rockefeller", true, (m, p) => {
   pinnacles(m, tw, s, 26, true);
 });
 
-// --- East side: Bartlett, Robie House, Booth, Ida Noyes ---------------------
-gothic("bartlett", { x: 17.6, y: 3.4, w: 2.5, d: 1.5, h: 56 }, "x", 24, { tallWindows: true, cappedButtresses: true, turrets: ["C"], ivy: true });
-
+// --- Robie House, in full --------------------------------------------------
 add("robie", true, (m, p) => {
-  // Prairie style: long low brick, limestone coping, three tiers of cantilevered roof, one great chimney.
   const brick = p.shades(BRICK);
   const mortar = mix(BRICK, hex("#ffffff"), 0.45);
   const coping = p.shades(hex("#d9d2bd"));
   const eave = p.shades(hex("#6a4b3c"));
-  const base = tb({ x: 16.9, y: 9.45, w: 2.7, d: 0.95, z: GROUND, h: 14 });
-  const main = tb({ x: 17.0, y: 9.5, w: 2.5, d: 0.85, z: GROUND + 16, h: 13 });
-  const belvedere = tb({ x: 17.6, y: 9.62, w: 1.2, d: 0.55, z: GROUND + 31.5, h: 11 });
+  const base = tb({ x: 16.9, y: 8.3, w: 2.7, d: 0.95, z: GROUND, h: 14 });
+  const main = tb({ x: 17.0, y: 8.35, w: 2.5, d: 0.85, z: GROUND + 16, h: 13 });
+  const belvedere = tb({ x: 17.6, y: 8.47, w: 1.2, d: 0.55, z: GROUND + 31.5, h: 11 });
   const slab = (b: BoxSpec, over: number, z: number) =>
     m.box({ x: b.x - over, y: b.y - over * 0.55, w: b.w + over * 2, d: b.d + over * 1.1, z, h: 2.2 }, eave, { outline: true });
-  const tier = (b: BoxSpec, windowed: boolean) => {
+  const tier = (b: BoxSpec) => {
     m.box(b, brick);
     for (let z = b.z + 2.5; z < b.z + b.h - 1; z += 2.5) {
       m.line([b.x, b.y + b.d, z], [b.x + b.w, b.y + b.d, z], 1, mortar, 0.45, 0.01);
       m.line([b.x + b.w, b.y + b.d, z], [b.x + b.w, b.y, z], 1, mortar, 0.45, 0.01);
     }
-    // Limestone coping along the top of the wall
     m.box({ x: b.x - 0.02, y: b.y - 0.02, w: b.w + 0.04, d: b.d + 0.04, z: b.z + b.h, h: 1.6 }, coping, { outline: false });
-    if (!windowed) return;
     const { c, a } = windowColor(p, b.x * 3);
     const z0 = b.z + b.h - 7.5;
     const z1 = b.z + b.h - 2;
@@ -803,46 +807,25 @@ add("robie", true, (m, p) => {
     m.poly([[b.x + b.w, b.y + b.d - 0.1, z0], [b.x + b.w, b.y + 0.1, z0], [b.x + b.w, b.y + 0.1, z1], [b.x + b.w, b.y + b.d - 0.1, z1]], c, a, 0.02);
     for (let y = b.y + 0.1; y < b.y + b.d - 0.1; y += 0.11) m.line([b.x + b.w, y, z0], [b.x + b.w, y, z1], 1, mortar, 0.8, 0.03);
   };
-  tier(base, true);
+  tier(base);
   slab(base, 0.5, GROUND + 15.6);
-  tier(main, true);
+  tier(main);
   slab(main, 0.55, GROUND + 30.6);
-  tier(belvedere, true);
+  tier(belvedere);
   slab(belvedere, 0.4, GROUND + 44);
-  // The chimney, and the garden wall with its planters
   m.box({ x: main.x + 1.0, y: main.y + 0.22, w: 0.3, d: 0.34, z: GROUND + 16, h: 36 }, brick);
   m.box({ x: main.x + 0.98, y: main.y + 0.2, w: 0.34, d: 0.38, z: GROUND + 52, h: 1.5 }, coping, { outline: false });
-  const wall = tb({ x: 16.8, y: 10.5, w: 2.9, d: 0.1, z: GROUND, h: 5 });
+  const wall = tb({ x: 16.8, y: 9.35, w: 2.9, d: 0.1, z: GROUND, h: 5 });
   m.box(wall, brick, { outline: false });
   for (const x of [16.85, 18.2, 19.55]) {
-    const pier = tb({ x, y: 10.47, w: 0.16, d: 0.16, z: GROUND, h: 7 });
+    const pier = tb({ x, y: 9.32, w: 0.16, d: 0.16, z: GROUND, h: 7 });
     m.box(pier, brick, { outline: false });
     m.box({ ...pier, z: GROUND + 7, h: 1.5, x: pier.x - 0.03, y: pier.y - 0.03, w: 0.22, d: 0.22 }, coping, { outline: false });
     m.dot([pier.x + 0.08, pier.y + 0.08, GROUND + 10.5], 2.2, p.leafLight, 1, 0.04);
   }
 });
 
-add("booth", true, (m, p) => {
-  const g = p.shades(GLASS);
-  const b = tb({ x: 16.9, y: 11.0, w: 3.1, d: 2.0, z: GROUND, h: 52 });
-  m.box(b, g);
-  windows(m, b, "grid", p);
-  const atrium = tb({ x: 17.6, y: 11.6, w: 1.5, d: 1.0, z: GROUND + 52, h: 26 });
-  m.box(atrium, g);
-  windows(m, atrium, "grid", p);
-  // The white "cloud" roof floating on thin posts
-  const post = p.shades(hex("#c9d1d8")).left;
-  for (const [x, y] of [
-    [17.0, 11.1],
-    [19.9, 11.1],
-    [19.9, 12.9],
-    [17.0, 12.9],
-  ] as const) {
-    m.line(tp([x, y, GROUND + 78]), tp([x, y, GROUND + 86]), 1, post);
-  }
-  m.box(tb({ x: 16.7, y: 10.8, w: 3.5, d: 2.4, z: GROUND + 86, h: 4 }), p.shades(hex("#f4f5f2")));
-});
-
+// --- Ida Noyes Hall, Tudor brick with the Pub in the basement ----------------
 add("ida-noyes", true, (m, p) => {
   const brick = p.shades(hex("#a35b45"));
   const roof = p.roofShades(TILE_ROOF);
@@ -860,24 +843,6 @@ add("ida-noyes", true, (m, p) => {
   merlons(m, tw, brick);
 });
 
-// --- The far skyline: Logan, Burton-Judson, the Law School -----------------
-add("logan", true, (m, p) => {
-  const s = p.shades(CONCRETE);
-  const tw = tb({ x: 1.0, y: 19.3, w: 1.5, d: 1.6, z: GROUND, h: 150 });
-  m.box(tw, s);
-  windows(m, tw, "slits", p);
-  const wing = tb({ x: 2.6, y: 19.3, w: 1.6, d: 1.6, z: GROUND, h: 28 });
-  m.box(wing, s);
-  windows(m, wing, "grid", p);
-});
-gothic("burton-judson", { x: 4.8, y: 19.3, w: 4.6, d: 1.5, h: 50 }, "x", 16, { turrets: ["D", "C"], ivy: true });
-tower("bj-tower", { x: 6.9, y: 19.3, w: 0.8, d: 0.8, h: 88 }, { pinnacles: 12 });
-add("law", true, (m, p) => {
-  const b = tb({ x: 10.7, y: 20.0, w: 2.7, d: 1.0, z: GROUND, h: 72 });
-  m.box(b, p.shades(hex("#9fc2dd")));
-  windows(m, b, "slits", p);
-});
-
 // --- Trees ------------------------------------------------------------------
 trees("quad-trees", [
   [5.2, 8.1, 6],
@@ -890,35 +855,100 @@ trees("quad-trees", [
   [8.9, 12.6, 6],
   [8.1, 9.0, 5],
 ]);
-treeLine("midway-n", [0.6, 15.0], [EAST_EDGE - 0.6, 15.0], 1.4, 6);
-treeLine("midway-s", [1.3, 18.2], [EAST_EDGE - 0.6, 18.2], 1.4, 6);
+treeLine("midway-n", [0.6, 15.0], [GRID - 0.6, 15.0], 1.4, 6);
+treeLine("midway-s", [1.3, 18.2], [GRID - 0.6, 18.2], 1.4, 6);
+treeLine("south-park", [0.8, 20.4], [GRID - 0.8, 20.4], 1.6, 7);
 treeLine("ellis", [1.85, 7.0], [1.85, 13.8], 1.7, 5);
 treeLine("woodlawn", [15.8, 7.2], [15.8, 13.8], 1.6, 5);
-treeLine("57th", [3.2, 5.7], [9.0, 5.7], 1.5, 5);
+treeLine("57th", [3.2, 5.7], [8.6, 5.7], 1.5, 5);
 treeLine("rockefeller-lawn", [12.6, 13.6], [15.6, 13.6], 0.8, 5);
-treeLine("mansueto-green", [17.8, 0.9], [19.9, 2.6], 1.0, 6);
-trees("bartlett-trees", [
-  [17.2, 5.4, 5],
-  [19.3, 5.5, 5],
-]);
-treeLine("park-e", [21.8, 0.6], [21.8, 21.4], 1.3, 6);
+treeLine("mansueto-green", [17.9, 0.9], [20.8, 5.2], 1.1, 6);
+treeLine("robie-green", [17.0, 7.3], [20.8, 7.3], 1.3, 5);
+treeLine("field-edge", [0.6, 0.6], [0.6, 5.4], 1.3, 5);
 trees("misc-trees", [
   [0.9, 7.4, 6],
   [0.9, 12.8, 6],
-  [8.4, 1.5, 5],
-  [8.6, 4.4, 5],
-  [18.3, 8.9, 5],
-  [16.3, 9.0, 5],
+  [8.5, 1.0, 5],
+  [8.6, 4.6, 5],
   [12.8, 7.0, 4],
   [15.3, 7.0, 4],
   [1.0, 16.5, 6],
-  [4.0, 21.2, 6],
-  [14.8, 21.0, 6],
-  [18.5, 20.5, 6],
-  [20.0, 14.5, 5],
+  [20.0, 14.6, 5],
   [13.2, 5.2, 5],
-  [12.2, 1.0, 5],
+  [12.2, 0.9, 5],
+  [3.4, 3.6, 5],
+  [20.6, 9.0, 5],
+  [11.0, 19.6, 6],
+  [16.5, 19.3, 6],
+  [5.5, 19.8, 6],
 ]);
+
+// --- Booth: just the winter garden, a glass pavilion on four spiral columns ---
+// Drawn last so what stands behind it shows through the glass.
+add("booth", true, (m, p) => {
+  const white = p.shades(hex("#f1f2ef"));
+  const glass = p.shades(p.glass);
+  const mullion = p.night ? mix(p.glass, hex("#ffffff"), 0.3) : mix(p.glass, hex("#1b3450"), 0.5);
+  const column = p.shades(hex("#5a6780"));
+  const strand = hex("#ffffff");
+
+  const wg = tb({ x: 17.2, y: 10.4, w: 2.4, d: 2.0, z: GROUND, h: 74 });
+  const top = wg.z + wg.h;
+  // Plinth and floor slab
+  m.box({ x: wg.x - 0.15, y: wg.y - 0.15, w: wg.w + 0.3, d: wg.d + 0.3, z: GROUND, h: 2.5 }, white);
+
+  // Four spiral columns: a shaft with two white strands twisting up, branching to the roof
+  const spiral = (cx: number, cy: number) => {
+    m.prism(cx, cy, 0.11, GROUND, top - 12, 6, column);
+    for (let z = GROUND + 3; z < top - 14; z += 1.2) {
+      const a = (z / 6) * Math.PI;
+      m.dot([cx + 0.15 * Math.cos(a), cy + 0.15 * Math.sin(a), z], 2.6, strand, 1, 0.1);
+      m.dot([cx + 0.15 * Math.cos(a + Math.PI), cy + 0.15 * Math.sin(a + Math.PI), z], 2.6, mix(strand, column.left, 0.45), 1, 0.1);
+    }
+    for (const [dx, dy] of [
+      [-0.3, -0.26],
+      [0.3, -0.26],
+      [0.3, 0.26],
+      [-0.3, 0.26],
+    ] as const) {
+      m.line([cx, cy, top - 16], [cx + dx, cy + dy, top - 1], 3.2, column.left, 1, 0.1);
+      m.line([cx, cy, top - 16], [cx + dx, cy + dy, top - 1], 1.3, strand, 0.95, 0.11);
+    }
+  };
+  for (const [fx, fy] of [
+    [0.27, 0.3],
+    [0.73, 0.3],
+    [0.27, 0.7],
+    [0.73, 0.7],
+  ] as const) {
+    spiral(wg.x + wg.w * fx, wg.y + wg.d * fy);
+  }
+
+  // Glass walls, see-through, with sparse mullions and white floor lines
+  const paneL = mix(glass.left, hex("#ffffff"), 0.3);
+  m.poly([[wg.x, wg.y + wg.d, wg.z], [wg.x + wg.w, wg.y + wg.d, wg.z], [wg.x + wg.w, wg.y + wg.d, top], [wg.x, wg.y + wg.d, top]], paneL, 0.3, 0.12);
+  m.poly([[wg.x + wg.w, wg.y + wg.d, wg.z], [wg.x + wg.w, wg.y, wg.z], [wg.x + wg.w, wg.y, top], [wg.x + wg.w, wg.y + wg.d, top]], glass.right, 0.35, 0.12);
+  for (let x = wg.x + 0.15; x < wg.x + wg.w; x += 0.3) m.line([x, wg.y + wg.d, wg.z], [x, wg.y + wg.d, top], 1, mullion, 0.4, 0.13);
+  for (let y = wg.y + 0.15; y < wg.y + wg.d; y += 0.3) m.line([wg.x + wg.w, y, wg.z], [wg.x + wg.w, y, top], 1, mullion, 0.4, 0.13);
+  for (let z = wg.z + 18; z < top; z += 18) {
+    m.line([wg.x, wg.y + wg.d, z], [wg.x + wg.w, wg.y + wg.d, z], 1, white.top, 0.6, 0.13);
+    m.line([wg.x + wg.w, wg.y + wg.d, z], [wg.x + wg.w, wg.y, z], 1, white.top, 0.6, 0.13);
+  }
+  // Corner posts and the eave beam
+  for (const [x, y] of [
+    [wg.x, wg.y + wg.d],
+    [wg.x + wg.w, wg.y + wg.d],
+    [wg.x + wg.w, wg.y],
+  ] as const) {
+    m.line([x, y, wg.z], [x, y, top], 1.4, white.right, 1, 0.14);
+  }
+  m.box({ x: wg.x - 0.04, y: wg.y - 0.04, w: wg.w + 0.08, d: wg.d + 0.08, z: top, h: 2.2 }, white, { outline: false });
+
+  // The pitched glass roof with a raised clerestory along the ridge
+  const roofGlass = { top: mix(glass.top, hex("#ffffff"), 0.35), left: mix(glass.left, hex("#ffffff"), 0.4), right: mix(glass.right, hex("#ffffff"), 0.2), edge: mullion };
+  m.gable({ ...wg, z: top + 2, h: 0 }, 16, "x", roofGlass, 2.5);
+  m.gable({ x: wg.x + 0.3, y: wg.y + 0.45, w: wg.w - 0.6, d: wg.d - 0.9, z: top + 12, h: 0 }, 10, "x", roofGlass, 2.5);
+});
 
 export const PROPS: readonly Prop[] = props;
 
@@ -942,7 +972,7 @@ export function buildStatic(m: Mesh, p: Palette, riseAt: (i: number) => number) 
 }
 
 // ---------------------------------------------------------------------------
-// Sky: stars at night, drifting clouds
+// Sky: a faint downtown on the horizon, stars at night, drifting clouds
 // ---------------------------------------------------------------------------
 
 const STARS = (() => {
@@ -956,96 +986,162 @@ const CLOUDS = [
   { x: 410, y: 44, k: 0.6, speed: 0.025, phase: 4 },
 ];
 
-/** Distant downtown, as a hazy pixel silhouette along the horizon behind the block. */
+/** Downtown, as a big hazy pixel silhouette behind the block. */
 interface Tower {
   x: number;
   w: number;
   h: number;
-  /** top width for tapered towers */
-  tw?: number;
-  antennas?: number[];
-  spire?: number;
-  round?: boolean;
-  light?: boolean;
+  kind?: "willis" | "hancock" | "trump" | "aon" | "marina" | "crain" | "wrigley" | "stregis" | "prudential" | "tribune";
 }
 
-const HORIZON = 206;
+const HORIZON = 210;
 const SKYLINE: Tower[] = [
-  { x: 60, w: 18, h: 30 },
-  { x: 84, w: 22, h: 46 },
-  { x: 112, w: 14, h: 58 },
-  { x: 136, w: 26, h: 40 },
-  { x: 176, w: 20, h: 72, spire: 18 }, // Prudential
-  { x: 204, w: 24, h: 52 },
-  { x: 236, w: 16, h: 64 },
-  { x: 262, w: 22, h: 78 }, // Crain, diamond top
-  { x: 296, w: 44, h: 150, antennas: [0.3, 0.72] }, // Willis
-  { x: 350, w: 18, h: 60 },
-  { x: 376, w: 22, h: 112 }, // Aon
-  { x: 406, w: 16, h: 48 },
-  { x: 428, w: 24, h: 104, spire: 30 }, // Trump
-  { x: 460, w: 14, h: 66 },
-  { x: 480, w: 30, h: 62, round: true }, // Marina City
-  { x: 520, w: 20, h: 90, tw: 14 }, // St. Regis
-  { x: 548, w: 16, h: 50 },
-  { x: 572, w: 40, h: 132, tw: 26, antennas: [0.25, 0.75], light: true }, // Hancock
-  { x: 622, w: 20, h: 70 },
-  { x: 650, w: 24, h: 56 },
-  { x: 682, w: 16, h: 44 },
-  { x: 706, w: 26, h: 36 },
-  { x: 742, w: 18, h: 52 },
-  { x: 768, w: 22, h: 30 },
+  { x: 10, w: 26, h: 44 },
+  { x: 44, w: 34, h: 70 },
+  { x: 86, w: 22, h: 96 },
+  { x: 116, w: 40, h: 60 },
+  { x: 160, w: 30, h: 122, kind: "prudential" },
+  { x: 198, w: 36, h: 80 },
+  { x: 240, w: 26, h: 104 },
+  { x: 270, w: 34, h: 126, kind: "crain" },
+  { x: 310, w: 68, h: 186, kind: "willis" },
+  { x: 384, w: 28, h: 90 },
+  { x: 418, w: 34, h: 150, kind: "aon" },
+  { x: 458, w: 24, h: 76 },
+  { x: 488, w: 38, h: 140, kind: "trump" },
+  { x: 532, w: 22, h: 98 },
+  { x: 558, w: 46, h: 92, kind: "marina" },
+  { x: 610, w: 30, h: 128, kind: "stregis" },
+  { x: 646, w: 24, h: 84 },
+  { x: 676, w: 60, h: 172, kind: "hancock" },
+  { x: 742, w: 30, h: 106, kind: "tribune" },
+  { x: 778, w: 26, h: 88, kind: "wrigley" },
+  { x: 810, w: 34, h: 60 },
+  { x: 850, w: 24, h: 40 },
 ];
 
 function skyline(m: Mesh, p: Palette, t: number) {
   const near = -140;
-  const body = p.night ? hex("#171d30") : hex("#c3cad9");
-  const side = p.night ? hex("#0f1424") : hex("#aeb7c8");
-  const edge = p.night ? hex("#0a0e1a") : hex("#97a1b5");
-  const lit = p.night ? hex("#ffd36a") : hex("#e4e9f1");
+  // A wash of distant haze: everything at low alpha so campus stays the subject
+  const A = p.night ? 0.42 : 0.26;
+  const body = p.night ? hex("#1c2338") : hex("#9aa6bd");
+  const side = p.night ? hex("#121828") : hex("#7e8aa3");
+  const edge = p.night ? hex("#0a0e1a") : hex("#5f6a82");
+  const lit = p.night ? hex("#ffd36a") : hex("#f4f7fb");
   const red = hex("#ff3b3b");
-  // Lake Michigan: a thin pale band at the horizon
-  m.polyScreen([[0, HORIZON], [VIEW_W, HORIZON], [VIEW_W, HORIZON + 9], [0, HORIZON + 9]], near - 2, p.night ? hex("#0d1a2e") : hex("#cfe0f2"), 0.9);
+  const rect = (x0: number, y0: number, x1: number, y1: number, c: RGB, a = A, bias = 0) =>
+    m.polyScreen([[x0, y0], [x1, y0], [x1, y1], [x0, y1]], near + bias, c, a);
+  // Lake Michigan at the horizon
+  rect(0, HORIZON, VIEW_W, HORIZON + 10, p.night ? hex("#0d1a2e") : hex("#9fc0dc"), A * 0.8, -2);
+
   for (const b of SKYLINE) {
     const x0 = b.x;
     const x1 = b.x + b.w;
     const top = HORIZON - b.h;
-    const tw = b.tw ?? b.w;
-    const inset = (b.w - tw) / 2;
-    if (b.round) {
-      // Twin cylinders
-      for (const cx of [x0 + b.w * 0.27, x0 + b.w * 0.73]) {
-        const r = b.w * 0.22;
-        const pts: Pt[] = [];
-        for (let i = 0; i <= 8; i++) {
-          const a = Math.PI + (i / 8) * Math.PI;
-          pts.push([cx + r * Math.cos(a), top + r * 0.6 + r * 0.6 * Math.sin(a)]);
+    const win = (xa: number, xb: number, ya: number, yb: number, stepX = 4, stepY = 5) => {
+      for (let y = ya + 3; y < yb - 2; y += stepY) {
+        for (let x = xa + 2; x < xb - 2; x += stepX) {
+          if (hash(x * 3.1 + y * 7.7) > (p.night ? 0.5 : 0.45)) continue;
+          rect(x, y, x + 1.6, y + 2, lit, A * (p.night ? 1.4 : 1.1), 0.02);
         }
-        m.polyScreen([[cx - r, HORIZON], ...pts, [cx + r, HORIZON]], near, body);
-        for (let y = top + r; y < HORIZON - 3; y += 5) m.polyScreen([[cx - r + 1, y], [cx + r - 1, y], [cx + r - 1, y + 1], [cx - r + 1, y + 1]], near + 0.01, edge, 0.5);
       }
-      continue;
-    }
-    // Main shaft, a darker right face, and a 1px edge
-    m.polyScreen([[x0 + inset, top], [x1 - inset, top], [x1, HORIZON], [x0, HORIZON]], near, body);
-    m.polyScreen([[x1 - inset, top], [x1 - inset + 3, top + 2], [x1 + 3, HORIZON], [x1, HORIZON]], near, side);
-    m.polyScreen([[x0 + inset, top], [x1 - inset, top], [x1 - inset, top + 1], [x0 + inset, top + 1]], near + 0.01, edge);
-    if (b.x === 262) m.polyScreen([[x0, top], [x1, top], [x1, top - 10]], near, body); // Crain's slanted crown
-    // Windows: a sparse grid, lit at night
-    for (let y = top + 4; y < HORIZON - 3; y += 4) {
-      for (let x = x0 + 2; x < x1 - 2; x += 3) {
-        if (hash(x * 3.1 + y * 7.7) > (p.night ? 0.55 : 0.4)) continue;
-        m.polyScreen([[x, y], [x + 1.2, y], [x + 1.2, y + 1.6], [x, y + 1.6]], near + 0.02, lit, p.night ? 0.9 : 0.8);
-      }
-    }
-    if (b.spire) m.polyScreen([[x0 + b.w / 2 - 1, top], [x0 + b.w / 2 + 1, top], [x0 + b.w / 2, top - b.spire]], near, side);
-    for (const a of b.antennas ?? []) {
-      const ax = x0 + inset + (tw * a);
-      m.polyScreen([[ax - 0.6, top], [ax + 0.6, top], [ax + 0.6, top - 26], [ax - 0.6, top - 26]], near, side);
+    };
+    const shaft = (xa: number, xb: number, ya: number, yb: number, taperTop = 0) => {
+      m.polyScreen([[xa + taperTop, ya], [xb - taperTop, ya], [xb, yb], [xa, yb]], near, body, A);
+      m.polyScreen([[xb - taperTop, ya], [xb - taperTop + 4, ya + 2], [xb + 4, yb], [xb, yb]], near, side, A);
+      rect(xa + taperTop, ya, xb - taperTop, ya + 1.2, edge, A, 0.01);
+      win(xa, xb, ya, yb);
+    };
+    const antenna = (ax: number, ya: number, h: number) => {
+      rect(ax - 0.7, ya - h, ax + 0.7, ya, side, A);
       if (p.night) {
         const blink = 0.3 + 0.7 * Math.abs(Math.sin(t * 2.2 + ax));
-        m.polyScreen([[ax - 1.2, top - 27], [ax + 1.2, top - 27], [ax + 1.2, top - 25], [ax - 1.2, top - 25]], near + 0.03, red, blink);
+        rect(ax - 1.4, ya - h - 2, ax + 1.4, ya - h, red, blink * 0.9, 0.03);
       }
+    };
+    switch (b.kind) {
+      case "willis": {
+        // Nine bundled tubes in three tiers, two antennas
+        const w3 = b.w / 3;
+        shaft(x0, x0 + w3, HORIZON - b.h * 0.62, HORIZON);
+        shaft(x0 + w3, x0 + 2 * w3, HORIZON - b.h, HORIZON);
+        shaft(x0 + 2 * w3, x1, HORIZON - b.h * 0.82, HORIZON);
+        shaft(x0 + w3 * 0.5, x0 + w3 * 1.5, HORIZON - b.h * 0.9, HORIZON - b.h * 0.62);
+        for (let y = top + 6; y < HORIZON; y += 14) rect(x0 + w3, y, x0 + 2 * w3, y + 1, edge, A * 0.8, 0.015);
+        antenna(x0 + w3 * 1.3, top, 40);
+        antenna(x0 + w3 * 1.7, top, 34);
+        break;
+      }
+      case "hancock": {
+        shaft(x0, x1, top, HORIZON, 12);
+        // X-bracing
+        for (let y = top + 10; y < HORIZON - 10; y += 32) {
+          const inset = 12 * (1 - (y - top) / b.h);
+          m.polyScreen([[x0 + inset, y], [x0 + inset + 1.2, y], [x1 - inset, y + 30], [x1 - inset - 1.2, y + 30]], near + 0.02, edge, A);
+          m.polyScreen([[x1 - inset, y], [x1 - inset - 1.2, y], [x0 + inset, y + 30], [x0 + inset + 1.2, y + 30]], near + 0.02, edge, A);
+        }
+        antenna(x0 + b.w * 0.3, top, 44);
+        antenna(x0 + b.w * 0.7, top, 44);
+        break;
+      }
+      case "trump": {
+        shaft(x0, x1, HORIZON - b.h * 0.55, HORIZON);
+        shaft(x0 + 6, x1 - 2, HORIZON - b.h * 0.8, HORIZON - b.h * 0.55);
+        shaft(x0 + 12, x1 - 4, top, HORIZON - b.h * 0.8);
+        m.polyScreen([[x0 + 18, top], [x0 + 22, top], [x0 + 20, top - 36]], near, side, A);
+        break;
+      }
+      case "aon": {
+        shaft(x0, x1, top, HORIZON);
+        for (let x = x0 + 3; x < x1; x += 4) rect(x, top, x + 1, HORIZON, lit, A * 0.8, 0.012);
+        break;
+      }
+      case "marina": {
+        for (const cx of [x0 + b.w * 0.27, x0 + b.w * 0.73]) {
+          const r = b.w * 0.22;
+          const pts: Pt[] = [];
+          for (let i = 0; i <= 8; i++) {
+            const a = Math.PI + (i / 8) * Math.PI;
+            pts.push([cx + r * Math.cos(a), top + r * 0.5 + r * 0.5 * Math.sin(a)]);
+          }
+          m.polyScreen([[cx - r, HORIZON], ...pts, [cx + r, HORIZON]], near, body, A);
+          for (let y = top + r; y < HORIZON - 3; y += 5) rect(cx - r + 1, y, cx + r - 1, y + 1.2, edge, A * 0.9, 0.012);
+        }
+        break;
+      }
+      case "crain": {
+        shaft(x0, x1, top, HORIZON);
+        m.polyScreen([[x0, top], [x1, top], [x1, top - 22]], near, body, A);
+        m.polyScreen([[x0, top], [x1, top - 22], [x1, top - 20], [x0, top + 2]], near + 0.01, edge, A);
+        break;
+      }
+      case "stregis": {
+        shaft(x0, x0 + b.w * 0.4, HORIZON - b.h * 0.7, HORIZON);
+        shaft(x0 + b.w * 0.3, x0 + b.w * 0.72, top, HORIZON);
+        shaft(x0 + b.w * 0.62, x1, HORIZON - b.h * 0.85, HORIZON);
+        break;
+      }
+      case "prudential": {
+        shaft(x0, x1, top, HORIZON);
+        m.polyScreen([[x0 + b.w / 2 - 1.5, top], [x0 + b.w / 2 + 1.5, top], [x0 + b.w / 2, top - 30]], near, side, A);
+        break;
+      }
+      case "tribune": {
+        shaft(x0, x1, top, HORIZON);
+        // Flying-buttress crown
+        for (const dx of [2, 8, b.w - 10, b.w - 4]) rect(x0 + dx, top - 14, x0 + dx + 2, top, side, A);
+        rect(x0 + 6, top - 20, x1 - 6, top, body, A);
+        break;
+      }
+      case "wrigley": {
+        shaft(x0, x1, top, HORIZON);
+        rect(x0 + 8, top - 24, x1 - 8, top, body, A);
+        rect(x0 + 10, top - 18, x1 - 10, top - 14, lit, A, 0.02);
+        m.polyScreen([[x0 + 8, top - 24], [x1 - 8, top - 24], [x0 + b.w / 2, top - 34]], near, side, A);
+        break;
+      }
+      default:
+        shaft(x0, x1, top, HORIZON);
     }
   }
 }
@@ -1103,7 +1199,7 @@ export interface VehicleSpec {
   wid: number;
   h: number;
   color: RGB;
-  /** A window band around the body (buses, trains). */
+  /** A window band around the body (buses). */
   band?: RGB;
   /** A smaller cabin on top (cars). */
   cabin?: boolean;
@@ -1114,29 +1210,15 @@ const loop = (...pts: Pt[]): Pt[] => pts.map(tpt);
 
 const S57 = 6 + STREET_W / 2;
 const S59 = 14 + STREET_W / 2;
-const S60 = 18.5 + STREET_W / 2;
 const ELLIS = 2 + STREET_W / 2;
 const UNIV = 11.5 + STREET_W / 2;
 const WOOD = 15.9 + STREET_W / 2;
 
 export const VEHICLES: readonly VehicleSpec[] = [
   { id: "bus55", path: loop([0.3, S57 - 0.16], [EAST_EDGE - 0.3, S57 - 0.16], [EAST_EDGE - 0.3, S57 + 0.16], [0.3, S57 + 0.16]), speed: 1.8, offset: 6, z: GROUND, len: 1.0, wid: 0.36, h: 12, color: hex("#f3f4f6"), band: hex("#2b5fd9") },
-  { id: "ugo", path: loop([UNIV - 0.15, S57], [UNIV - 0.15, S60], [WOOD + 0.15, S60], [WOOD + 0.15, S57]), speed: 1.5, offset: 14, z: GROUND, len: 0.7, wid: 0.34, h: 10, color: hex("#7a1d2b"), band: hex("#2a2a30") },
+  { id: "ugo", path: loop([UNIV - 0.15, S57], [UNIV - 0.15, S59], [WOOD + 0.15, S59], [WOOD + 0.15, S57]), speed: 1.5, offset: 14, z: GROUND, len: 0.7, wid: 0.34, h: 10, color: hex("#7a1d2b"), band: hex("#2a2a30") },
   { id: "taxi", path: loop([0.3, S59 - 0.16], [EAST_EDGE - 0.3, S59 - 0.16], [EAST_EDGE - 0.3, S59 + 0.16], [0.3, S59 + 0.16]), speed: 2.3, offset: 30, z: GROUND, len: 0.5, wid: 0.3, h: 6, color: hex("#f2c230"), cabin: true },
-  { id: "car-ellis", path: loop([ELLIS - 0.15, 0.3], [ELLIS - 0.15, GRID - 0.3], [ELLIS + 0.15, GRID - 0.3], [ELLIS + 0.15, 0.3]), speed: 2.0, offset: 9, z: GROUND, len: 0.5, wid: 0.3, h: 6, color: hex("#d7262b"), cabin: true },
-  { id: "car-60th", path: loop([0.3, S60 - 0.16], [EAST_EDGE - 0.3, S60 - 0.16], [EAST_EDGE - 0.3, S60 + 0.16], [0.3, S60 + 0.16]), speed: 2.1, offset: 2, z: GROUND, len: 0.5, wid: 0.3, h: 6, color: hex("#2f7d4f"), cabin: true },
-  ...[0, 1, 2].map((i) => ({
-    id: `metra-${i}`,
-    path: loop([20.72, 0.3], [20.72, GRID - 0.3], [21.18, GRID - 0.3], [21.18, 0.3]),
-    speed: 3.0,
-    offset: 5 + i * 1.3,
-    z: GROUND + 16,
-    len: 1.1,
-    wid: 0.34,
-    h: 13,
-    color: hex("#ccd1d8"),
-    band: hex("#e3692b"),
-  })),
+  { id: "car-ellis", path: loop([ELLIS - 0.15, 0.3], [ELLIS - 0.15, 14.4], [ELLIS + 0.15, 14.4], [ELLIS + 0.15, 0.3]), speed: 2.0, offset: 9, z: GROUND, len: 0.5, wid: 0.3, h: 6, color: hex("#d7262b"), cabin: true },
 ];
 
 function pathLengths(path: readonly Pt[]): number[] {
@@ -1192,10 +1274,10 @@ const WALKERS: readonly Walker[] = (() => {
     loop([10.8, 7.3], [7.1, 10.5], [3.4, 13.7]),
     loop([3.4, 13.7], [7.1, 10.5]),
     loop([10.8, 7.3], [7.1, 10.5]),
-    loop([0.5, 16.6], [EAST_EDGE - 0.5, 16.6]),
-    loop([EAST_EDGE - 0.5, 16.7], [0.5, 16.7]),
-    loop([15.1, 6.0], [15.1, 4.9]),
-    loop([13.6, 5.8], [15.0, 5.8], [15.0, 5.0]),
+    loop([0.5, 16.6], [GRID - 0.5, 16.6]),
+    loop([GRID - 0.5, 16.7], [0.5, 16.7]),
+    loop([15.1, 6.0], [15.1, 5.0]),
+    loop([9.0, 0.7], [9.0, 5.8]),
     loop([12.6, 13.9], [14.4, 10.9]),
     loop([UNIV + 0.45, 7], [UNIV + 0.45, 13.8]),
     loop([WOOD - 0.45, 13.8], [WOOD - 0.45, 7]),
@@ -1279,31 +1361,25 @@ export interface Anchor {
 export const ANCHORS: readonly Anchor[] = [
   // Bubbles sit in the empty corners around the block, so only buildings on
   // its edges get them; the quad and Saieh stay uncovered.
-  { id: "mansueto", label: "Mansueto", x: 15.2, y: 3.2, z: 50, keywords: ["mansueto"], primary: true },
-  { id: "reg", label: "The Reg", x: 11.5, y: 2.9, z: 82, keywords: ["the reg", "reg hit", "regenstein", "reg ", "min sok lee", "midterm", "econ", "pset", "problem set", "finals", "reading period"], primary: true },
-  { id: "bartlett", label: "Bartlett", x: 18.85, y: 4.15, z: 92, keywords: ["bartlett", "dining", "tikka", "omelet", "brunch"], primary: true },
-  { id: "ida-noyes", label: "Ida Noyes", x: 18.4, y: 13.5, z: 72, keywords: ["the pub", "pub ", "trivia", "doc films", "ida noyes", "pretzel"], primary: true },
-  { id: "maxp", label: "Max P", x: 11.5, y: 0.7, z: 62, keywords: ["max p", "palevsky", "fire alarm", "dorm"] },
-  { id: "ratner", label: "Ratner", x: 5.5, y: 1.8, z: 108, keywords: ["ratner", "squat", "gym", "lap swim"] },
-  { id: "robie", label: "Robie House", x: 18.25, y: 9.9, z: 62, keywords: ["robie", "wright"] },
-  { id: "booth", label: "Booth", x: 18.4, y: 12.0, z: 100, keywords: ["booth", "atrium", "mba", "harper center"] },
-  { id: "metra", label: "59th St Metra", x: 20.9, y: 14.4, z: 42, keywords: ["metra"] },
-  { id: "logan", label: "Logan Center", x: 1.75, y: 20.1, z: 166, keywords: ["logan", "screening", "theater", "rooftop"] },
-  { id: "bj", label: "Burton-Judson", x: 7.3, y: 20.0, z: 108, keywords: ["cathey", "burton", "b-j", "judson"] },
-  { id: "law", label: "Law School", x: 12.0, y: 20.5, z: 90, keywords: ["law school", "fountain", "law "] },
+  { id: "mansueto", label: "Mansueto", x: 15.2, y: 3.0, z: 50, keywords: ["mansueto"], primary: true },
+  { id: "reg", label: "The Reg", x: 11.2, y: 2.6, z: 96, keywords: ["the reg", "reg hit", "regenstein", "reg ", "min sok lee", "midterm", "econ", "pset", "problem set", "finals", "reading period"], primary: true },
+  { id: "ratner", label: "Ratner", x: 5.4, y: 1.6, z: 120, keywords: ["ratner", "squat", "gym", "lap swim", "maroons", "football", "track meet", "intramural"], primary: true },
+  { id: "ida-noyes", label: "Ida Noyes", x: 18.4, y: 13.5, z: 72, keywords: ["the pub", "pub ", "trivia", "doc films", "ida noyes", "pretzel", "screening"], primary: true },
+  { id: "robie", label: "Robie House", x: 18.25, y: 8.75, z: 62, keywords: ["robie", "wright"] },
+  { id: "booth", label: "Booth", x: 18.4, y: 11.4, z: 105, keywords: ["booth", "atrium", "mba", "harper center", "bitcoin", "crypto", "eth"] },
   { id: "cobb", label: "Cobb Hall", x: 3.55, y: 10.9, z: 100, keywords: ["cobb", "sosc", "the core", "quad", "scav", "campus", "hull gate", "botany", "pond"] },
-  { id: "midway", label: "The Midway", x: 18.6, y: 16.6, z: 18, keywords: ["maroons", "football", "stagg", "track meet", "intramural", "rink", "midway", "skating"] },
+  { id: "midway", label: "The Midway", x: 19.0, y: 16.6, z: 18, keywords: ["rink", "midway", "skating", "sled"] },
   { id: "sky", label: "Hyde Park sky", x: 2.0, y: 16.6, z: 70, keywords: ["rain", "snow", "frost", "weather", "°f", "wind", "sunny"] },
 ];
 
 /** Where a market with no keyword match goes, by category. */
 export const CATEGORY_ANCHOR: Record<string, string> = {
-  sports: "midway",
+  sports: "ratner",
   campus: "reg",
   news: "sky",
-  culture: "logan",
+  culture: "ida-noyes",
   crypto: "booth",
-  other: "ratner",
+  other: "cobb",
 };
 
 export { VIEW_H, VIEW_W };
