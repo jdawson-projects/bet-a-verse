@@ -870,16 +870,13 @@ add("booth", true, (m, p) => {
 
   const wg = tb({ x: 16.9, y: 10.3, w: 3.4, d: 3.0, z: GROUND, h: 92 });
   const top = wg.z + wg.h;
-  // The roof folds, seen from outside: lowest at the eaves, up to a low ridge
-  // on each side, down into a valley over each column line, and up to the tall
-  // spine in the middle. The creases between the ridges fold inward.
+  // The roof, as the aerial shows it: a flat steel rim and a cross of ridges
+  // at the eave divide it into four squares, and each square is an inverted
+  // glass pyramid dented down toward the spiral column under it.
   const eave = top + 2.4;
-  const zSide = eave + 8;
-  const zValley = eave + 2;
-  const zSpine = eave + 24;
-  const yc = wg.y + wg.d / 2;
-  const ySide = [wg.y + wg.d * 0.15, wg.y + wg.d * 0.85] as const;
-  const yValley = [wg.y + wg.d * 0.3, wg.y + wg.d * 0.7] as const;
+  const zLow = eave - 15;
+  const qw = wg.w / 2;
+  const qd = wg.d / 2;
   // Plinth and floor slab
   m.box({ x: wg.x - 0.15, y: wg.y - 0.15, w: wg.w + 0.3, d: wg.d + 0.3, z: GROUND, h: 2.5 }, white);
   // The far walls, drawn first and very faint, so the pavilion reads as a volume behind the columns
@@ -891,7 +888,7 @@ add("booth", true, (m, p) => {
   // like trees to carry the roof. Each slice is a short square prism rotated
   // a little more than the one below; the corner lines spiral up the shaft.
   const twist = (cx: number, cy: number) => {
-    const shaftTop = zValley - 26;
+    const shaftTop = zLow - 24;
     const step = 2;
     const r = 0.3;
     const ring = (zz: number, phase: number): P3[] =>
@@ -928,22 +925,25 @@ add("booth", true, (m, p) => {
     }
     // Capital where the shaft meets the ribs
     m.prism(cx, cy, r + 0.05, shaftTop - 1.5, 3, 4, column, Math.PI / 2);
-    // Ribs, like the real ones: a trunk rises straight to just under the
-    // valley over the column, then ribs peel off and run along the underside
-    // of the glass to the folds: along the valley, up to the spine, out to the side ridge.
-    const yEdge = cy < yc ? ySide[0] : ySide[1];
-    const knee = zValley - 3;
+    // Ribs, like the real ones: a trunk rises straight to just under the low
+    // point of its dent, then eight ribs peel off and run up along the
+    // underside of the glass to the four creases and the four edge midpoints.
+    const xa = cx - qw / 2;
+    const xb = cx + qw / 2;
+    const ya = cy - qd / 2;
+    const yb = cy + qd / 2;
+    const knee = zLow - 3;
     m.line([cx, cy, shaftTop], [cx, cy, knee], 3.2, column.edge, 1, 0.1);
     m.line([cx, cy, shaftTop], [cx, cy, knee], 1.6, column.top, 1, 0.11);
     const ends: P3[] = [
-      [cx - 0.6, cy, zValley - 1.5],
-      [cx + 0.6, cy, zValley - 1.5],
-      [cx - 0.45, yc, zSpine - 1.5],
-      [cx, yc, zSpine - 1.5],
-      [cx + 0.45, yc, zSpine - 1.5],
-      [cx - 0.45, yEdge, zSide - 1.5],
-      [cx, yEdge, zSide - 1.5],
-      [cx + 0.45, yEdge, zSide - 1.5],
+      [xa, ya, eave - 1.5],
+      [xb, ya, eave - 1.5],
+      [xb, yb, eave - 1.5],
+      [xa, yb, eave - 1.5],
+      [cx, ya, eave - 1.5],
+      [cx, yb, eave - 1.5],
+      [xa, cy, eave - 1.5],
+      [xb, cy, eave - 1.5],
     ];
     for (const end of ends) {
       const p0: P3 = [cx, cy, knee - 7];
@@ -961,14 +961,64 @@ add("booth", true, (m, p) => {
     }
   };
   for (const [fx, fy] of [
-    [0.27, 0.3],
-    [0.73, 0.3],
-    [0.27, 0.7],
-    [0.73, 0.7],
+    [0.25, 0.25],
+    [0.75, 0.25],
+    [0.25, 0.75],
+    [0.75, 0.75],
   ] as const) {
     twist(wg.x + wg.w * fx, wg.y + wg.d * fy);
   }
 
+  // The dented glass roof, drawn before the walls so they blend over it
+  // rather than hiding the parts of the dents that sit below the wall tops. Each
+  // quarter is four triangular facets falling from its rim to a low point over
+  // the column; the facets facing the camera are lit, the ones climbing toward
+  // it are in shade. Far quarters go first so they show through the near ones.
+  // Two facets of each dent catch the sky and two sit in shadow, like the aerial
+  const lit = mix(glass.top, hex("#ffffff"), 0.5);
+  const lit2 = glass.top;
+  const shade = mix(glass.left, hex("#1b3450"), 0.3);
+  const shade2 = mix(glass.left, hex("#1b3450"), 0.55);
+  const steel = p.night ? mix(hex("#dfe3ea"), p.glass, 0.3) : mix(hex("#f6f7f4"), hex("#1b3450"), 0.3);
+  const quarters: (readonly [number, number])[] = [
+    [wg.x, wg.y],
+    [wg.x + qw, wg.y],
+    [wg.x, wg.y + qd],
+    [wg.x + qw, wg.y + qd],
+  ];
+  quarters.forEach(([xa, ya], i) => {
+    const xb = xa + qw;
+    const yb = ya + qd;
+    const cx = xa + qw / 2;
+    const cy = ya + qd / 2;
+    const low: P3 = [cx, cy, zLow];
+    const bias = 0.2 + i * 0.01;
+    m.poly([[xa, ya, eave], [xb, ya, eave], low], lit, 0.35, bias);
+    m.poly([[xa, yb, eave], [xa, ya, eave], low], lit2, 0.4, bias + 0.002);
+    m.poly([[xb, ya, eave], [xb, yb, eave], low], shade2, 0.6, bias + 0.004);
+    m.poly([[xb, yb, eave], [xa, yb, eave], low], shade, 0.5, bias + 0.006);
+    // Mullions ring the dent in concentric diamonds
+    const corners: P3[] = [[xa, ya, eave], [xb, ya, eave], [xb, yb, eave], [xa, yb, eave]];
+    for (const u of [0.35, 0.7]) {
+      const ring = corners.map(([x, y, z]): P3 => [cx + (x - cx) * u, cy + (y - cy) * u, zLow + (z - zLow) * u]);
+      for (let k = 0; k < 4; k++) m.line(ring[k], ring[(k + 1) % 4], 1, mullion, 0.35, bias + 0.008);
+    }
+    // Steel creases from the low point up to the four corners
+    for (const c of corners) m.line(low, c, 1.2, steel, 1, bias + 0.01);
+  });
+  // The rim and the cross of ridges at the eave
+  const xm = wg.x + qw;
+  const ym = wg.y + qd;
+  m.line([wg.x, ym, eave], [wg.x + wg.w, ym, eave], 1.6, steel, 1, 0.3);
+  m.line([xm, wg.y, eave], [xm, wg.y + wg.d, eave], 1.6, steel, 1, 0.3);
+  for (const [a, b] of [
+    [[wg.x, wg.y], [wg.x + wg.w, wg.y]],
+    [[wg.x + wg.w, wg.y], [wg.x + wg.w, wg.y + wg.d]],
+    [[wg.x + wg.w, wg.y + wg.d], [wg.x, wg.y + wg.d]],
+    [[wg.x, wg.y + wg.d], [wg.x, wg.y]],
+  ] as const) {
+    m.line([a[0], a[1], eave], [b[0], b[1], eave], 1.4, steel, 1, 0.3);
+  }
   // Glass walls, nearly clear so the columns show, with sparse mullions and a white floor line
   const paneL = mix(glass.left, hex("#ffffff"), 0.35);
   m.poly([[wg.x, wg.y + wg.d, wg.z], [wg.x + wg.w, wg.y + wg.d, wg.z], [wg.x + wg.w, wg.y + wg.d, top], [wg.x, wg.y + wg.d, top]], paneL, 0.18, 0.12);
@@ -986,55 +1036,12 @@ add("booth", true, (m, p) => {
   ] as const) {
     m.line([x, y, wg.z], [x, y, top], 1.6, white.right, 1, 0.14);
   }
-  m.box({ x: wg.x - 0.04, y: wg.y - 0.04, w: wg.w + 0.08, d: wg.d + 0.08, z: top, h: 2.4 }, white, { outline: false });
+  // A white fascia beam along each edge; just the rim, so the dents stay in view
+  m.box({ x: wg.x - 0.04, y: wg.y - 0.04, w: wg.w + 0.08, d: 0.1, z: top, h: 2.4 }, white, { outline: false });
+  m.box({ x: wg.x - 0.04, y: wg.y + wg.d - 0.06, w: wg.w + 0.08, d: 0.1, z: top, h: 2.4 }, white, { outline: false });
+  m.box({ x: wg.x - 0.04, y: wg.y - 0.04, w: 0.1, d: wg.d + 0.08, z: top, h: 2.4 }, white, { outline: false });
+  m.box({ x: wg.x + wg.w - 0.06, y: wg.y - 0.04, w: 0.1, d: wg.d + 0.08, z: top, h: 2.4 }, white, { outline: false });
 
-  // The folded glass roof, clear enough to see the ribs through it. Its
-  // section is a zigzag of three ridges: the surface climbs from each eave to
-  // a low side ridge, folds inward into a valley, and climbs to the spine.
-  // Facets go far-to-near so the ones behind show through the ones in front.
-  const lit = mix(glass.top, hex("#ffffff"), 0.3);
-  const shade = mix(glass.left, hex("#1b3450"), 0.15);
-  const spine = p.night ? mix(hex("#dfe3ea"), p.glass, 0.3) : mix(hex("#f6f7f4"), hex("#1b3450"), 0.3);
-  const x0 = wg.x;
-  const x1 = wg.x + wg.w;
-  const y0 = wg.y;
-  const y1 = wg.y + wg.d;
-  const profile: (readonly [number, number])[] = [
-    [y0, eave],
-    [ySide[0], zSide],
-    [yValley[0], zValley],
-    [yc, zSpine],
-    [yValley[1], zValley],
-    [ySide[1], zSide],
-    [y1, eave],
-  ];
-  profile.forEach(([ya, za], i) => {
-    if (i + 1 >= profile.length) return;
-    const [yb, zb] = profile[i + 1];
-    const bias = 0.2 + i * 0.01;
-    // Facets that descend toward the camera catch the light; the ones climbing away are in shade
-    const color = zb < za ? lit : shade;
-    m.poly([[x0, ya, za], [x1, ya, za], [x1, yb, zb], [x0, yb, zb]], color, zb < za ? 0.32 : 0.28, bias);
-    for (let x = x0 + 0.5; x < x1 - 0.01; x += 0.5) m.line([x, ya, za], [x, yb, zb], 1, mullion, 0.3, bias + 0.005);
-    const y = (ya + yb) / 2;
-    const z = (za + zb) / 2;
-    m.line([x0, y, z], [x1, y, z], 1, mullion, 0.3, bias + 0.005);
-    // Vertical glass closes the zigzag at both ends
-    for (const x of [x0, x1]) {
-      m.poly([[x, ya, eave], [x, yb, eave], [x, yb, zb], [x, ya, za]], x === x1 ? shade : glass.right, x === x1 ? 0.34 : 0.26, bias + (x === x1 ? 0.06 : 0.002));
-    }
-  });
-  // Steel along every fold: ridges and valleys along the roof, and the end profiles
-  profile.forEach(([y, z], i) => {
-    if (i === 0 || i + 1 === profile.length) return;
-    const isSpine = i === 3;
-    m.line([x0, y, z], [x1, y, z], isSpine ? 1.6 : 1.2, spine, isSpine ? 1 : 0.9, 0.27);
-  });
-  for (const x of [x0, x1]) {
-    for (let i = 0; i + 1 < profile.length; i++) {
-      m.line([x, profile[i][0], profile[i][1]], [x, profile[i + 1][0], profile[i + 1][1]], x === x1 ? 1.4 : 1, spine, x === x1 ? 1 : 0.7, 0.27);
-    }
-  }
 });
 
 export const PROPS: readonly Prop[] = props;
@@ -1452,7 +1459,7 @@ export const ANCHORS: readonly Anchor[] = [
   { id: "reg", label: "The Reg", x: 11.2, y: 2.6, z: 96, keywords: ["the reg", "reg hit", "regenstein", "reg ", "min sok lee", "midterm", "econ", "pset", "problem set", "finals", "reading period"], primary: true },
   { id: "ratner", label: "Ratner", x: 5.4, y: 1.6, z: 120, keywords: ["ratner", "squat", "gym", "lap swim", "maroons", "football", "track meet", "intramural"], primary: true },
   { id: "robie", label: "Robie House", x: 18.25, y: 8.75, z: 62, keywords: ["robie", "wright", "doc films", "screening", "the pub", "pub ", "trivia", "pretzel"] },
-  { id: "booth", label: "Booth", x: 18.6, y: 11.8, z: 130, keywords: ["booth", "atrium", "mba", "harper center", "bitcoin", "crypto", "eth"] },
+  { id: "booth", label: "Booth", x: 18.6, y: 11.8, z: 108, keywords: ["booth", "atrium", "mba", "harper center", "bitcoin", "crypto", "eth"] },
   { id: "cobb", label: "Cobb Hall", x: 3.55, y: 10.9, z: 100, keywords: ["cobb", "sosc", "the core", "quad", "scav", "campus", "hull gate", "botany", "pond"] },
   { id: "midway", label: "The Midway", x: 19.0, y: 16.6, z: 18, keywords: ["rink", "midway", "skating", "sled"] },
   { id: "sky", label: "Hyde Park sky", x: 2.0, y: 16.6, z: 70, keywords: ["rain", "snow", "frost", "weather", "°f", "wind", "sunny"] },
