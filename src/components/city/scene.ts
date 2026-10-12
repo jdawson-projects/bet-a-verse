@@ -870,12 +870,15 @@ add("booth", true, (m, p) => {
 
   const wg = tb({ x: 16.9, y: 10.3, w: 3.4, d: 3.0, z: GROUND, h: 92 });
   const top = wg.z + wg.h;
-  // The roof folds: a perimeter rail at the eave, two valleys that dip inward
-  // over the column lines, and a tall spine down the middle.
+  // The roof folds, seen from outside: lowest at the eaves, up to a low ridge
+  // on each side, down into a valley over each column line, and up to the tall
+  // spine in the middle. The creases between the ridges fold inward.
   const eave = top + 2.4;
-  const zValley = eave - 10;
+  const zSide = eave + 8;
+  const zValley = eave + 2;
   const zSpine = eave + 24;
   const yc = wg.y + wg.d / 2;
+  const ySide = [wg.y + wg.d * 0.15, wg.y + wg.d * 0.85] as const;
   const yValley = [wg.y + wg.d * 0.3, wg.y + wg.d * 0.7] as const;
   // Plinth and floor slab
   m.box({ x: wg.x - 0.15, y: wg.y - 0.15, w: wg.w + 0.3, d: wg.d + 0.3, z: GROUND, h: 2.5 }, white);
@@ -927,8 +930,8 @@ add("booth", true, (m, p) => {
     m.prism(cx, cy, r + 0.05, shaftTop - 1.5, 3, 4, column, Math.PI / 2);
     // Ribs, like the real ones: a trunk rises straight to just under the
     // valley over the column, then ribs peel off and run along the underside
-    // of the glass to the folds: along the valley, up to the spine, out to the eave.
-    const yEdge = cy < yc ? wg.y : wg.y + wg.d;
+    // of the glass to the folds: along the valley, up to the spine, out to the side ridge.
+    const yEdge = cy < yc ? ySide[0] : ySide[1];
     const knee = zValley - 3;
     m.line([cx, cy, shaftTop], [cx, cy, knee], 3.2, column.edge, 1, 0.1);
     m.line([cx, cy, shaftTop], [cx, cy, knee], 1.6, column.top, 1, 0.11);
@@ -938,9 +941,9 @@ add("booth", true, (m, p) => {
       [cx - 0.45, yc, zSpine - 1.5],
       [cx, yc, zSpine - 1.5],
       [cx + 0.45, yc, zSpine - 1.5],
-      [cx - 0.45, yEdge, eave - 1.5],
-      [cx, yEdge, eave - 1.5],
-      [cx + 0.45, yEdge, eave - 1.5],
+      [cx - 0.45, yEdge, zSide - 1.5],
+      [cx, yEdge, zSide - 1.5],
+      [cx + 0.45, yEdge, zSide - 1.5],
     ];
     for (const end of ends) {
       const p0: P3 = [cx, cy, knee - 7];
@@ -985,46 +988,52 @@ add("booth", true, (m, p) => {
   }
   m.box({ x: wg.x - 0.04, y: wg.y - 0.04, w: wg.w + 0.08, d: wg.d + 0.08, z: top, h: 2.4 }, white, { outline: false });
 
-  // The folded glass roof, clear enough to see the ribs through it. In
-  // section it is a W: the glass drops from the eave rail into a valley over
-  // each column line and climbs to the spine in the middle. Facets go in
-  // far-to-near so the ones behind show through the ones in front.
+  // The folded glass roof, clear enough to see the ribs through it. Its
+  // section is a zigzag of three ridges: the surface climbs from each eave to
+  // a low side ridge, folds inward into a valley, and climbs to the spine.
+  // Facets go far-to-near so the ones behind show through the ones in front.
   const lit = mix(glass.top, hex("#ffffff"), 0.3);
   const shade = mix(glass.left, hex("#1b3450"), 0.15);
-  const back = glass.right;
   const spine = p.night ? mix(hex("#dfe3ea"), p.glass, 0.3) : mix(hex("#f6f7f4"), hex("#1b3450"), 0.3);
   const x0 = wg.x;
   const x1 = wg.x + wg.w;
   const y0 = wg.y;
   const y1 = wg.y + wg.d;
-  const strip = (ya: number, za: number, yb: number, zb: number, color: RGB, alpha: number, bias: number) => {
-    m.poly([[x0, ya, za], [x1, ya, za], [x1, yb, zb], [x0, yb, zb]], color, alpha, bias);
-    for (let x = x0 + 0.5; x < x1 - 0.01; x += 0.5) m.line([x, ya, za], [x, yb, zb], 1, mullion, 0.3, bias + 0.01);
-    for (const u of [1 / 3, 2 / 3]) {
-      const y = ya + (yb - ya) * u;
-      const z = za + (zb - za) * u;
-      m.line([x0, y, z], [x1, y, z], 1, mullion, 0.3, bias + 0.01);
+  const profile: (readonly [number, number])[] = [
+    [y0, eave],
+    [ySide[0], zSide],
+    [yValley[0], zValley],
+    [yc, zSpine],
+    [yValley[1], zValley],
+    [ySide[1], zSide],
+    [y1, eave],
+  ];
+  profile.forEach(([ya, za], i) => {
+    if (i + 1 >= profile.length) return;
+    const [yb, zb] = profile[i + 1];
+    const bias = 0.2 + i * 0.01;
+    // Facets that descend toward the camera catch the light; the ones climbing away are in shade
+    const color = zb < za ? lit : shade;
+    m.poly([[x0, ya, za], [x1, ya, za], [x1, yb, zb], [x0, yb, zb]], color, zb < za ? 0.32 : 0.28, bias);
+    for (let x = x0 + 0.5; x < x1 - 0.01; x += 0.5) m.line([x, ya, za], [x, yb, zb], 1, mullion, 0.3, bias + 0.005);
+    const y = (ya + yb) / 2;
+    const z = (za + zb) / 2;
+    m.line([x0, y, z], [x1, y, z], 1, mullion, 0.3, bias + 0.005);
+    // Vertical glass closes the zigzag at both ends
+    for (const x of [x0, x1]) {
+      m.poly([[x, ya, eave], [x, yb, eave], [x, yb, zb], [x, ya, za]], x === x1 ? shade : glass.right, x === x1 ? 0.34 : 0.26, bias + (x === x1 ? 0.06 : 0.002));
     }
-  };
-  const endGable = (x: number, color: RGB, alpha: number, bias: number) => {
-    m.poly([[x, yValley[0], zValley], [x, yc, zSpine], [x, yValley[1], zValley]], color, alpha, bias);
-    for (const u of [1 / 3, 2 / 3]) {
-      const z = zValley + (zSpine - zValley) * u;
-      m.line([x, yValley[0] + (yc - yValley[0]) * u, z], [x, yValley[1] - (yValley[1] - yc) * u, z], 1, mullion, 0.3, bias + 0.01);
-    }
-  };
-  strip(y0, eave, yValley[0], zValley, shade, 0.34, 0.2);
-  strip(yValley[0], zValley, yc, zSpine, back, 0.26, 0.21);
-  endGable(x0, back, 0.26, 0.22);
-  strip(yc, zSpine, yValley[1], zValley, lit, 0.32, 0.23);
-  strip(yValley[1], zValley, y1, eave, shade, 0.38, 0.24);
-  endGable(x1, shade, 0.34, 0.25);
-  // Steel along every fold: the spine, the two valleys, the eave rails and the end profiles
-  m.line([x0, yc, zSpine], [x1, yc, zSpine], 1.6, spine, 1, 0.27);
-  for (const yv of yValley) m.line([x0, yv, zValley], [x1, yv, zValley], 1.2, spine, 0.9, 0.27);
+  });
+  // Steel along every fold: ridges and valleys along the roof, and the end profiles
+  profile.forEach(([y, z], i) => {
+    if (i === 0 || i + 1 === profile.length) return;
+    const isSpine = i === 3;
+    m.line([x0, y, z], [x1, y, z], isSpine ? 1.6 : 1.2, spine, isSpine ? 1 : 0.9, 0.27);
+  });
   for (const x of [x0, x1]) {
-    const pts: P3[] = [[x, y0, eave], [x, yValley[0], zValley], [x, yc, zSpine], [x, yValley[1], zValley], [x, y1, eave]];
-    for (let i = 0; i + 1 < pts.length; i++) m.line(pts[i], pts[i + 1], x === x1 ? 1.4 : 1, spine, x === x1 ? 1 : 0.7, 0.27);
+    for (let i = 0; i + 1 < profile.length; i++) {
+      m.line([x, profile[i][0], profile[i][1]], [x, profile[i + 1][0], profile[i + 1][1]], x === x1 ? 1.4 : 1, spine, x === x1 ? 1 : 0.7, 0.27);
+    }
   }
 });
 
