@@ -142,9 +142,14 @@ export class Mesh {
     }
   }
 
-  /** Pitched roof on top of `b`. The far slope is hidden by the near one when the pitch is steep. */
-  gable(b: BoxSpec, rise: number, axis: "x" | "y", s: Shades) {
+  /**
+   * Pitched roof on top of `b`. The far slope is hidden by the near one when the
+   * pitch is steep. `tiles` draws rows of tiles across the near slope, that many
+   * scene units apart.
+   */
+  gable(b: BoxSpec, rise: number, axis: "x" | "y", s: Shades, tiles = 0) {
     const t = b.z + b.h;
+    const rows = tiles > 0 ? Math.floor(rise / tiles) : 0;
     if (axis === "x") {
       const yc = b.y + b.d / 2;
       const r1: P3 = [b.x, yc, t + rise];
@@ -152,6 +157,12 @@ export class Mesh {
       this.poly([[b.x, b.y, t], [b.x + b.w, b.y, t], r2, r1], s.top);
       this.poly([r1, r2, [b.x + b.w, b.y + b.d, t], [b.x, b.y + b.d, t]], s.left);
       this.poly([[b.x + b.w, b.y, t], [b.x + b.w, b.y + b.d, t], r2], s.right);
+      for (let k = 1; k <= rows; k++) {
+        const u = (k * tiles) / rise;
+        const y = yc + (b.d / 2) * (1 - u);
+        const z = t + rise * u;
+        this.line([b.x, y, z], [b.x + b.w, y, z], 1, s.right, 0.45, 0.02);
+      }
       this.line(r1, r2, 1, s.edge, 1, 0.04);
       this.line(r2, [b.x + b.w, b.y + b.d, t], 1, s.edge, 1, 0.04);
       this.line(r2, [b.x + b.w, b.y, t], 1, s.edge, 1, 0.04);
@@ -164,10 +175,51 @@ export class Mesh {
     this.poly([[b.x, b.y, t], [b.x, b.y + b.d, t], r2, r1], s.top);
     this.poly([r1, r2, [b.x + b.w, b.y + b.d, t], [b.x + b.w, b.y, t]], s.right);
     this.poly([[b.x, b.y + b.d, t], [b.x + b.w, b.y + b.d, t], r2], s.left);
+    for (let k = 1; k <= rows; k++) {
+      const u = (k * tiles) / rise;
+      const x = xc + (b.w / 2) * (1 - u);
+      const z = t + rise * u;
+      this.line([x, b.y, z], [x, b.y + b.d, z], 1, s.edge, 0.3, 0.02);
+    }
     this.line(r1, r2, 1, s.edge, 1, 0.04);
     this.line(r2, [b.x + b.w, b.y + b.d, t], 1, s.edge, 1, 0.04);
     this.line(r2, [b.x, b.y + b.d, t], 1, s.edge, 1, 0.04);
     this.line(r1, [b.x + b.w, b.y, t], 1, s.edge, 1, 0.04);
+  }
+
+  /** A regular n-sided tower (turrets). Sides are shaded by which way they face. */
+  prism(cx: number, cy: number, r: number, z: number, h: number, n: number, s: Shades) {
+    const ring = (zz: number): P3[] =>
+      Array.from({ length: n }, (_, i) => {
+        const a = ((i + 0.5) / n) * Math.PI * 2;
+        return [cx + r * Math.cos(a), cy + r * Math.sin(a), zz];
+      });
+    const bottom = ring(z);
+    const top = ring(z + h);
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const mx = (bottom[i][0] + bottom[j][0]) / 2 - cx;
+      const my = (bottom[i][1] + bottom[j][1]) / 2 - cy;
+      const color = mx > my ? s.right : s.left;
+      this.poly([top[i], top[j], bottom[j], bottom[i]], color);
+      this.line(top[i], bottom[i], 1, s.edge, 1, 0.03);
+    }
+    this.poly(top, s.top);
+  }
+
+  /** A cone on top of a prism: a conical turret roof. */
+  cone(cx: number, cy: number, r: number, z: number, h: number, n: number, s: Shades) {
+    const apex: P3 = [cx, cy, z + h];
+    for (let i = 0; i < n; i++) {
+      const a0 = ((i + 0.5) / n) * Math.PI * 2;
+      const a1 = ((i + 1.5) / n) * Math.PI * 2;
+      const p0: P3 = [cx + r * Math.cos(a0), cy + r * Math.sin(a0), z];
+      const p1: P3 = [cx + r * Math.cos(a1), cy + r * Math.sin(a1), z];
+      const mx = (p0[0] + p1[0]) / 2 - cx;
+      const my = (p0[1] + p1[1]) / 2 - cy;
+      this.tri(apex, p1, p0, mx > my ? s.right : s.left);
+      this.line(apex, p0, 1, s.edge, 1, 0.03);
+    }
   }
 
   /** Polygon of a grid-space ellipse at height z. */

@@ -67,11 +67,11 @@ export function City({ className = "" }: { className?: string }) {
       if (visible && !reduce) frame = requestAnimationFrame(loop);
     };
 
-    // Art pixels are 2 screen pixels wide on anything bigger than a phone.
+    // One art pixel per CSS pixel (crisp 2× on retina), like a 1× pixel-art PNG.
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
       if (rect.width === 0) return;
-      const scale = rect.width >= 640 ? 2 : 1;
+      const scale = 1;
       const w = Math.max(1, Math.round(rect.width / scale));
       const h = Math.max(1, Math.round((w * VIEW_H) / VIEW_W));
       renderer.resize(w, h);

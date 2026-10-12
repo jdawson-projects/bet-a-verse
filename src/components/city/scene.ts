@@ -12,15 +12,16 @@ import { hex, mix, type Palette, type RGB, type Shades } from "./palette";
 // Materials
 // ---------------------------------------------------------------------------
 
-const LIMESTONE = hex("#d9d2bf");
-const LIMESTONE_DARK = hex("#c9c0a8");
-const TILE_ROOF = hex("#c9552c");
-const SLATE = hex("#596273");
+const LIMESTONE = hex("#dbd4c1");
+const LIMESTONE_DARK = hex("#cbc2aa");
+const TILE_ROOF = hex("#cf5a2e");
+const TILE_ROOF_DEEP = hex("#b94d28");
+const SLATE = hex("#5a6374");
 const BRICK = hex("#a4523d");
-const GREYSTONE = hex("#b8b2a4");
 const GLASS = hex("#8fb8dc");
 const WHITE = hex("#eef0eb");
 const CONCRETE = hex("#d0cabb");
+const CHIMNEY = hex("#9c8a6e");
 
 type Skin = "none" | "grid" | "gothic" | "slits";
 
@@ -32,6 +33,7 @@ export interface Prop {
 }
 
 const SKY_BIAS = 300;
+const TILE_ROWS = 3.5;
 
 // ---------------------------------------------------------------------------
 // Building parts
@@ -41,62 +43,84 @@ function frac(n: number) {
   return n - Math.floor(n);
 }
 
+function hash(seed: number) {
+  return frac(Math.sin(seed * 12.9898) * 43758.5453);
+}
+
 /** Lit or dark at night, decided once per window so the pattern is stable. */
 function windowColor(p: Palette, seed: number): { c: RGB; a: number } {
   if (!p.night) return { c: p.window, a: p.windowAlpha };
-  return frac(Math.sin(seed * 12.9898) * 43758.5453) < 0.7 ? { c: p.windowLit, a: 1 } : { c: p.windowDark, a: 1 };
+  return hash(seed) < 0.7 ? { c: p.windowLit, a: 1 } : { c: p.windowDark, a: 1 };
 }
 
-/** Windows on the two visible faces. `gothic` adds a pointed top; `slits` are floor-to-roof stripes. */
+/** Windows on the two visible faces. Gothic ones are paired lancets with pointed tops. */
 function windows(m: Mesh, b: BoxSpec, skin: Skin, p: Palette) {
   if (skin === "none") return;
-  const colStep = skin === "slits" ? 0.16 : skin === "gothic" ? 0.26 : 0.22;
-  const ww = skin === "slits" ? 0.05 : skin === "gothic" ? 0.09 : 0.1;
-  const rowStep = skin === "gothic" ? 9 : 7;
-  const wh = skin === "gothic" ? 5 : 3.2;
+  const gothic = skin === "gothic";
+  const colStep = skin === "slits" ? 0.16 : gothic ? 0.3 : 0.22;
+  const ww = skin === "slits" ? 0.05 : gothic ? 0.065 : 0.1;
+  const rowStep = gothic ? 10 : 7;
+  const wh = gothic ? 5 : 3.2;
   const top = b.z + b.h;
   const bias = 0.02;
 
-  const paint = (quad: P3[], seed: number) => {
+  const lancet = (quad: P3[], seed: number) => {
     const { c, a } = windowColor(p, seed);
     m.poly(quad, c, skin === "slits" && !p.night ? 0.35 : a, bias);
-    if (skin === "gothic") {
+    if (gothic) {
       const [q0, q1, q2, q3] = quad;
-      m.tri(q3, q2, [(q0[0] + q1[0]) / 2, (q0[1] + q1[1]) / 2, q2[2] + 1.8], c, a, bias);
+      m.tri(q3, q2, [(q0[0] + q1[0]) / 2, (q0[1] + q1[1]) / 2, q2[2] + 1.6], c, a, bias);
     }
   };
 
   // Left face: plane y = b.y + b.d, columns along x.
   const yL = b.y + b.d;
-  for (let x = b.x + 0.09; x + ww <= b.x + b.w - 0.07; x += colStep) {
+  for (let x = b.x + 0.1; x + ww * 2 + 0.03 <= b.x + b.w - 0.08; x += colStep) {
     if (skin === "slits") {
-      paint([[x, yL, b.z + 2], [x + ww, yL, b.z + 2], [x + ww, yL, top - 2], [x, yL, top - 2]], x * 7 + b.y);
+      lancet([[x, yL, b.z + 2], [x + ww, yL, b.z + 2], [x + ww, yL, top - 2], [x, yL, top - 2]], x * 7 + b.y);
       continue;
     }
-    for (let z = b.z + 3; z + wh <= top - 2.5; z += rowStep) {
-      paint([[x, yL, z], [x + ww, yL, z], [x + ww, yL, z + wh], [x, yL, z + wh]], x * 7 + z * 13 + b.y);
+    for (let z = b.z + 4; z + wh <= top - 3; z += rowStep) {
+      lancet([[x, yL, z], [x + ww, yL, z], [x + ww, yL, z + wh], [x, yL, z + wh]], x * 7 + z * 13 + b.y);
+      if (gothic) {
+        const x2 = x + ww + 0.03;
+        lancet([[x2, yL, z], [x2 + ww, yL, z], [x2 + ww, yL, z + wh], [x2, yL, z + wh]], x * 7 + z * 13 + b.y + 1);
+      }
     }
   }
   // Right face: plane x = b.x + b.w, columns along y.
   const xR = b.x + b.w;
-  for (let y = b.y + 0.09; y + ww <= b.y + b.d - 0.07; y += colStep) {
+  for (let y = b.y + 0.1; y + ww * 2 + 0.03 <= b.y + b.d - 0.08; y += colStep) {
     if (skin === "slits") {
-      paint([[xR, y + ww, b.z + 2], [xR, y, b.z + 2], [xR, y, top - 2], [xR, y + ww, top - 2]], y * 11 + b.x);
+      lancet([[xR, y + ww, b.z + 2], [xR, y, b.z + 2], [xR, y, top - 2], [xR, y + ww, top - 2]], y * 11 + b.x);
       continue;
     }
-    for (let z = b.z + 3; z + wh <= top - 2.5; z += rowStep) {
-      paint([[xR, y + ww, z], [xR, y, z], [xR, y, z + wh], [xR, y + ww, z + wh]], y * 11 + z * 17 + b.x);
+    for (let z = b.z + 4; z + wh <= top - 3; z += rowStep) {
+      lancet([[xR, y + ww, z], [xR, y, z], [xR, y, z + wh], [xR, y + ww, z + wh]], y * 11 + z * 17 + b.x);
+      if (gothic) {
+        const y2 = y + ww + 0.03;
+        lancet([[xR, y2 + ww, z], [xR, y2, z], [xR, y2, z + wh], [xR, y2 + ww, z + wh]], y * 11 + z * 17 + b.x + 1);
+      }
     }
+  }
+}
+
+/** Faint horizontal joints so walls read as cut stone. */
+function courses(m: Mesh, b: BoxSpec, s: Shades) {
+  const top = b.z + b.h;
+  for (let z = b.z + 4; z < top - 2; z += 4) {
+    m.line([b.x, b.y + b.d, z], [b.x + b.w, b.y + b.d, z], 1, s.edge, 0.16, 0.01);
+    m.line([b.x + b.w, b.y + b.d, z], [b.x + b.w, b.y, z], 1, s.edge, 0.22, 0.01);
   }
 }
 
 /** Stone ribs against the two visible walls. */
 function buttresses(m: Mesh, b: BoxSpec, s: Shades) {
   const h = b.h * 0.7;
-  for (let x = b.x + 0.22; x + 0.12 < b.x + b.w - 0.15; x += 0.5) {
+  for (let x = b.x + 0.25; x + 0.12 < b.x + b.w - 0.15; x += 0.6) {
     m.box({ x, y: b.y + b.d, w: 0.12, d: 0.1, z: b.z, h }, s);
   }
-  for (let y = b.y + 0.22; y + 0.12 < b.y + b.d - 0.15; y += 0.5) {
+  for (let y = b.y + 0.25; y + 0.12 < b.y + b.d - 0.15; y += 0.6) {
     m.box({ x: b.x + b.w, y, w: 0.1, d: 0.12, z: b.z, h }, s);
   }
 }
@@ -139,6 +163,62 @@ function door(m: Mesh, b: BoxSpec, s: Shades) {
   m.tri([cx - w / 2, y, b.z + h], [cx + w / 2, y, b.z + h], [cx, y, b.z + h + 2.5], c, 1, 0.03);
 }
 
+/** Small gabled windows poking out of the near roof slope. */
+function dormers(m: Mesh, b: BoxSpec, axis: "x" | "y", rise: number, wall: Shades, roof: Shades, p: Palette) {
+  const t = b.z + b.h;
+  const u = 0.42;
+  const zBase = t + rise * u - 3;
+  const count = (len: number) => Math.max(1, Math.floor(len / 0.75));
+  if (axis === "x") {
+    const n = count(b.w);
+    const yc = b.y + b.d / 2;
+    const yFront = yc + (b.d / 2) * (1 - u);
+    for (let i = 0; i < n; i++) {
+      const x = b.x + (b.w * (i + 0.5)) / n - 0.09;
+      const box: BoxSpec = { x, y: yFront - 0.16, w: 0.18, d: 0.16, z: zBase, h: 6 };
+      m.box(box, wall);
+      m.gable(box, 3.5, "x", roof);
+      const { c, a } = windowColor(p, x * 31 + b.y);
+      m.poly([[x + 0.05, yFront, zBase + 1.5], [x + 0.13, yFront, zBase + 1.5], [x + 0.13, yFront, zBase + 5], [x + 0.05, yFront, zBase + 5]], c, a, 0.03);
+    }
+    return;
+  }
+  const n = count(b.d);
+  const xc = b.x + b.w / 2;
+  const xFront = xc + (b.w / 2) * (1 - u);
+  for (let i = 0; i < n; i++) {
+    const y = b.y + (b.d * (i + 0.5)) / n - 0.09;
+    const box: BoxSpec = { x: xFront - 0.16, y, w: 0.16, d: 0.18, z: zBase, h: 6 };
+    m.box(box, wall);
+    m.gable(box, 3.5, "y", roof);
+    const { c, a } = windowColor(p, y * 31 + b.x);
+    m.poly([[xFront, y + 0.13, zBase + 1.5], [xFront, y + 0.05, zBase + 1.5], [xFront, y + 0.05, zBase + 5], [xFront, y + 0.13, zBase + 5]], c, a, 0.03);
+  }
+}
+
+function chimney(m: Mesh, b: BoxSpec, axis: "x" | "y", rise: number, p: Palette) {
+  const t = b.z + b.h;
+  const s = p.shades(CHIMNEY);
+  const z = t + rise * 0.55;
+  const h = rise * 0.45 + 6;
+  if (axis === "x") {
+    m.box({ x: b.x + 0.14, y: b.y + b.d / 2 - 0.05, w: 0.1, d: 0.1, z, h }, s);
+  } else {
+    m.box({ x: b.x + b.w / 2 - 0.05, y: b.y + b.d - 0.24, w: 0.1, d: 0.1, z, h }, s);
+  }
+}
+
+/** A round corner turret with a conical tile roof. */
+function turret(m: Mesh, cx: number, cy: number, z: number, h: number, wall: Shades, roof: Shades, p: Palette) {
+  const r = 0.17;
+  m.prism(cx, cy, r, z, h, 8, wall);
+  for (let zz = z + 6; zz < z + h - 4; zz += 10) {
+    const { c, a } = windowColor(p, cx * 17 + zz);
+    m.poly([[cx + r * 0.2, cy + r, zz], [cx + r * 0.6, cy + r * 0.85, zz], [cx + r * 0.6, cy + r * 0.85, zz + 4], [cx + r * 0.2, cy + r, zz + 4]], c, a, 0.04);
+  }
+  m.cone(cx, cy, r + 0.03, z + h, 11, 8, roof);
+}
+
 function tree(m: Mesh, p: Palette, x: number, y: number, r = 5) {
   const base: P3 = [x, y, GROUND];
   const topZ = GROUND + 5;
@@ -156,6 +236,7 @@ function tree(m: Mesh, p: Palette, x: number, y: number, r = 5) {
   circle(sx, sy, r + m.px * 0.9, 10, p.leafEdge, -0.005);
   circle(sx, sy, r, 10, p.leaf, 0);
   circle(sx - r * 0.3, sy - r * 0.32, r * 0.55, 8, p.leafLight, 0.005);
+  circle(sx + r * 0.25, sy + r * 0.3, r * 0.35, 6, mix(p.leaf, p.leafEdge, 0.5), 0.004);
 }
 
 // ---------------------------------------------------------------------------
@@ -173,23 +254,37 @@ function building(id: string, b: Omit<BoxSpec, "z">, base: RGB, skin: Skin = "gr
   });
 }
 
-/** Gothic hall: limestone, lancet windows, buttresses, an arched door, a clay-tile roof. */
-function gothic(
-  id: string,
-  b: Omit<BoxSpec, "z">,
-  axis: "x" | "y",
-  rise = 14,
-  opts: { color?: RGB; roof?: RGB; buttress?: boolean; door?: boolean } = {},
-) {
-  const { color = LIMESTONE, roof = TILE_ROOF, buttress = true, door: hasDoor = true } = opts;
+interface GothicOpts {
+  color?: RGB;
+  roof?: RGB;
+  buttress?: boolean;
+  door?: boolean;
+  dormers?: boolean;
+  chimney?: boolean;
+  /** Corners that get a round turret: front-left (D), front (C), right (B). */
+  turrets?: ("D" | "C" | "B")[];
+}
+
+/** Gothic hall: cut limestone, paired lancets, buttresses, a door, a clay-tile roof with dormers. */
+function gothic(id: string, b: Omit<BoxSpec, "z">, axis: "x" | "y", rise = 14, opts: GothicOpts = {}) {
+  const { color = LIMESTONE, roof = TILE_ROOF, buttress = true, door: hasDoor = true, dormers: hasDormers = true, chimney: hasChimney = true, turrets = [] } = opts;
   add(id, true, (m, p) => {
     const spec = { ...b, z: GROUND };
     const s = p.shades(color);
+    const rs = p.roofShades(roof);
     m.box(spec, s);
+    courses(m, spec, s);
     windows(m, spec, "gothic", p);
     if (buttress) buttresses(m, spec, s);
     if (hasDoor) door(m, spec, s);
-    m.gable(spec, rise, axis, p.roofShades(roof));
+    m.gable(spec, rise, axis, rs, TILE_ROWS);
+    if (hasDormers) dormers(m, spec, axis, rise, s, rs, p);
+    if (hasChimney) chimney(m, spec, axis, rise, p);
+    for (const corner of turrets) {
+      const cx = corner === "D" ? b.x : b.x + b.w;
+      const cy = corner === "B" ? b.y : b.y + b.d;
+      turret(m, cx, cy, GROUND, b.h + rise * 0.6, s, rs, p);
+    }
   });
 }
 
@@ -198,6 +293,7 @@ function tower(id: string, b: Omit<BoxSpec, "z">, color = LIMESTONE, pinnacleH =
     const spec = { ...b, z: GROUND };
     const s = p.shades(color);
     m.box(spec, s);
+    courses(m, spec, s);
     windows(m, spec, "gothic", p);
     if (crenellated) merlons(m, spec, s);
     if (pinnacleH > 0) pinnacles(m, spec, s, pinnacleH);
@@ -236,6 +332,25 @@ const flat = (x0: number, y0: number, x1: number, y1: number, z: number): P3[] =
   [x0, y1, z],
 ];
 
+function seeded(seed: number) {
+  let state = seed;
+  return () => {
+    state = (state * 48271) % 2147483647;
+    return state / 2147483647;
+  };
+}
+
+/** A narrow path between two ground points. */
+function path(m: Mesh, p: Palette, a: Pt, b: Pt, width = 0.14) {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = (-dy / len) * (width / 2);
+  const ny = (dx / len) * (width / 2);
+  const z = GROUND + 0.06;
+  m.poly([[a[0] + nx, a[1] + ny, z], [b[0] + nx, b[1] + ny, z], [b[0] - nx, b[1] - ny, z], [a[0] - nx, a[1] - ny, z]], p.path);
+}
+
 add("ground", false, (m, p) => {
   // The slab and its edges
   const slab = p.shades(p.land);
@@ -245,15 +360,45 @@ add("ground", false, (m, p) => {
   const park = (x0: number, y0: number, x1: number, y1: number, a = 1) => m.poly(flat(x0, y0, x1, y1, GROUND + 0.03), p.park, a);
   park(4, 10, 9, 17);
   park(0, 18, EAST_EDGE, 21);
-  park(10, 10, 14, 13, 0.8);
-  park(10, 14, 14, 17, 0.8);
-  park(15, 11.6, 18, 13, 0.7);
+  park(10, 10, 14, 13, 0.85);
+  park(10, 14, 14, 17, 0.85);
+  park(15, 11.6, 18, 13, 0.75);
   park(22.8, 0, 24, 24);
   park(0, 2, 3, 5);
+  park(15.3, 10.2, 17.8, 11.4, 0.75);
 
-  // Quad paths
-  m.poly(flat(6.4, 10.2, 6.7, 16.8, GROUND + 0.06), p.path);
-  m.poly(flat(4.2, 13.2, 8.8, 13.45, GROUND + 0.06), p.path);
+  // Grass texture: scattered darker tufts
+  const rand = seeded(11);
+  const tuft = mix(p.park, p.leafEdge, 0.35);
+  const lawns: [number, number, number, number][] = [
+    [4.3, 10.3, 8.7, 16.7],
+    [0.2, 18.2, EAST_EDGE - 0.2, 20.8],
+    [10.3, 14.2, 13.7, 15.1],
+    [0.3, 2.3, 2.7, 4.7],
+  ];
+  for (const [x0, y0, x1, y1] of lawns) {
+    const n = Math.round((x1 - x0) * (y1 - y0) * 3.2);
+    for (let i = 0; i < n; i++) {
+      m.dot([x0 + rand() * (x1 - x0), y0 + rand() * (y1 - y0), GROUND + 0.05], 1, tuft, 0.8);
+    }
+  }
+
+  // Quad paths: a cross, the diagonals, and the circle where they meet
+  const c: Pt = [6.5, 13.4];
+  path(m, p, [6.5, 10.1], [6.5, 16.9], 0.22);
+  path(m, p, [4.1, 13.4], [8.9, 13.4], 0.22);
+  for (const corner of [
+    [4.3, 10.3],
+    [8.7, 10.3],
+    [4.3, 16.7],
+    [8.7, 16.7],
+  ] as const) {
+    path(m, p, corner, c);
+  }
+  m.ellipse(c[0], c[1], 0.5, 0.5, GROUND + 0.07, p.path);
+  m.ellipse(c[0], c[1], 0.3, 0.3, GROUND + 0.09, p.park);
+  path(m, p, [10.3, 16.9], [13.7, 14.3], 0.12);
+  path(m, p, [10.3, 14.3], [13.7, 16.9], 0.12);
 
   // Streets with center dashes
   for (const y of STREET_ROWS) m.poly(flat(0, y, EAST_EDGE, y + 1, GROUND + 0.05), p.street);
@@ -299,10 +444,13 @@ add("ground", false, (m, p) => {
 // Landmarks
 // ---------------------------------------------------------------------------
 
-// West of Ellis
-building("eckhardt", { x: 0.3, y: 6.3, w: 2.4, d: 2.3, h: 52 }, GLASS, "grid");
-building("crerar", { x: 0.3, y: 10.3, w: 2.3, d: 2.4, h: 46 }, CONCRETE, "slits");
-gothic("labs", { x: 0.3, y: 14.3, w: 2.4, d: 2.3, h: 38 }, "x", 10, { color: LIMESTONE_DARK, roof: SLATE, buttress: false });
+// West of Ellis: labs and the Logan Center
+gothic("jones", { x: 0.3, y: 6.3, w: 2.4, d: 1.0, h: 44 }, "x", 15, { turrets: ["C"] });
+gothic("kent", { x: 0.3, y: 7.6, w: 1.0, d: 1.3, h: 40 }, "y", 14, { door: false });
+gothic("kersten", { x: 0.3, y: 10.3, w: 2.3, d: 1.0, h: 42 }, "x", 14);
+gothic("crerar", { x: 0.3, y: 11.6, w: 1.0, d: 1.2, h: 38 }, "y", 13, { door: false, turrets: ["D"] });
+gothic("hinds", { x: 0.3, y: 14.3, w: 2.4, d: 1.0, h: 42 }, "x", 15, { turrets: ["C"] });
+gothic("research", { x: 0.3, y: 15.6, w: 2.4, d: 1.0, h: 36 }, "x", 13, { door: false });
 building("logan-tower", { x: 0.4, y: 22.3, w: 1.3, d: 1.4, h: 136 }, CONCRETE, "slits");
 building("logan-wing", { x: 1.8, y: 22.3, w: 1.0, d: 1.4, h: 26 }, CONCRETE, "grid");
 
@@ -342,53 +490,52 @@ add("mansueto", true, (m, p) => {
   m.ellipse(cx, cy, r + 0.08, r + 0.08, GROUND + 0.04, p.waterRim, 1, 0, 16);
 });
 
-// The main quad
-gothic("snell-hitchcock", { x: 4.2, y: 10.2, w: 1.5, d: 0.7, h: 40 }, "x", 12);
-gothic("hull", { x: 6.0, y: 10.2, w: 1.0, d: 0.7, h: 36 }, "x", 11);
-gothic("reynolds", { x: 7.4, y: 10.2, w: 1.4, d: 0.8, h: 44 }, "x", 14);
+// The main quad: long gothic ranges around the lawn
+gothic("snell-hitchcock", { x: 4.2, y: 10.2, w: 1.9, d: 0.9, h: 42 }, "x", 14, { turrets: ["D"] });
+gothic("hull", { x: 6.3, y: 10.2, w: 0.9, d: 0.9, h: 38 }, "x", 12, { dormers: false });
+gothic("reynolds", { x: 7.4, y: 10.2, w: 1.4, d: 0.9, h: 46 }, "x", 15, { door: false });
 tower("mitchell", { x: 8.1, y: 10.2, w: 0.7, d: 0.7, h: 118 }, LIMESTONE, 12);
-gothic("cobb", { x: 4.2, y: 11.2, w: 0.7, d: 2.2, h: 46 }, "y", 13);
-gothic("ryerson", { x: 4.2, y: 13.7, w: 0.7, d: 1.5, h: 42 }, "y", 12);
-gothic("swift", { x: 8.1, y: 11.4, w: 0.7, d: 1.4, h: 44 }, "y", 13);
-gothic("classics", { x: 8.1, y: 13.1, w: 0.7, d: 2.0, h: 40 }, "y", 12);
-gothic("harper", { x: 5.4, y: 15.6, w: 2.2, d: 1.2, h: 52 }, "x", 16);
+gothic("cobb", { x: 4.2, y: 11.4, w: 0.9, d: 2.1, h: 48 }, "y", 14, { turrets: ["D"] });
+gothic("ryerson", { x: 4.2, y: 13.8, w: 0.9, d: 1.6, h: 44 }, "y", 13, { door: false });
+gothic("swift", { x: 7.9, y: 11.4, w: 0.9, d: 1.5, h: 46 }, "y", 14, { door: false, turrets: ["B"] });
+gothic("classics", { x: 7.9, y: 13.2, w: 0.9, d: 2.1, h: 42 }, "y", 13, { turrets: ["C"] });
+gothic("harper", { x: 5.4, y: 15.6, w: 2.2, d: 1.2, h: 52 }, "x", 17);
 tower("harper-w", { x: 4.4, y: 15.6, w: 1.0, d: 1.2, h: 108 });
 tower("harper-e", { x: 7.6, y: 15.6, w: 1.0, d: 1.2, h: 108 });
 
 // South of the Midway, west side
-gothic("burton-judson", { x: 4.3, y: 22.3, w: 4.4, d: 1.4, h: 44 }, "x", 14, { color: LIMESTONE_DARK, roof: SLATE });
-tower("bj-tower", { x: 6.2, y: 22.3, w: 0.7, d: 0.7, h: 78 }, LIMESTONE_DARK, 10);
+gothic("burton-judson", { x: 4.3, y: 22.3, w: 4.4, d: 1.4, h: 44 }, "x", 15, { turrets: ["D", "C"] });
+tower("bj-tower", { x: 6.2, y: 22.3, w: 0.7, d: 0.7, h: 78 }, LIMESTONE, 10);
 
 // University → Woodlawn
 add("campus-north", true, (m, p) => {
   const s = p.shades(WHITE);
   for (const b of [
     { x: 10.3, y: 2.3, w: 3.4, d: 2.4, z: GROUND, h: 22 },
-    { x: 10.4, y: 2.4, w: 1.2, d: 2.2, z: GROUND + 22, h: 108 },
-    { x: 12.4, y: 2.4, w: 1.2, d: 1.1, z: GROUND + 22, h: 76 },
+    { x: 10.4, y: 2.4, w: 1.2, d: 2.2, z: GROUND + 22, h: 88 },
   ]) {
     m.box(b, s);
     windows(m, b, "grid", p);
   }
 });
-building("crown-fieldhouse", { x: 10.3, y: 6.2, w: 3.4, d: 1.0, h: 34 }, LIMESTONE_DARK, "gothic");
-gothic("bartlett", { x: 10.3, y: 7.6, w: 2.2, d: 1.2, h: 46 }, "x", 14);
-gothic("saieh-main", { x: 11.4, y: 10.3, w: 2.1, d: 0.9, h: 42 }, "x", 13);
-gothic("saieh-wing", { x: 10.3, y: 10.3, w: 0.9, d: 1.3, h: 42 }, "y", 13, { door: false });
+gothic("crown-fieldhouse", { x: 10.3, y: 6.2, w: 3.4, d: 1.0, h: 36 }, "x", 14, { door: false });
+gothic("bartlett", { x: 10.3, y: 7.6, w: 2.2, d: 1.2, h: 46 }, "x", 15, { turrets: ["C"] });
+gothic("saieh-main", { x: 11.4, y: 10.3, w: 2.1, d: 0.9, h: 42 }, "x", 14);
+gothic("saieh-wing", { x: 10.3, y: 10.3, w: 0.9, d: 1.3, h: 42 }, "y", 14, { door: false });
 tower("saieh-tower", { x: 10.3, y: 11.7, w: 1.0, d: 1.0, h: 122 }, LIMESTONE_DARK, 12);
-gothic("oriental-institute", { x: 11.9, y: 11.8, w: 1.8, d: 1.0, h: 40 }, "x", 12, { color: LIMESTONE_DARK, roof: SLATE });
-gothic("rockefeller-nave", { x: 10.5, y: 15.3, w: 2.1, d: 1.3, h: 58 }, "x", 20, { roof: SLATE });
+gothic("oriental-institute", { x: 11.9, y: 11.8, w: 1.8, d: 1.0, h: 40 }, "x", 13, { color: LIMESTONE_DARK, dormers: false });
+gothic("rockefeller-nave", { x: 10.5, y: 15.3, w: 2.1, d: 1.3, h: 58 }, "x", 22, { roof: SLATE, dormers: false, chimney: false });
 tower("rockefeller-tower", { x: 12.6, y: 15.1, w: 1.2, d: 1.5, h: 188 }, LIMESTONE, 18);
 
-// The Law School: fluted glass
+// The Law School: fluted glass by the pool
 building("law", { x: 10.6, y: 22.9, w: 2.8, d: 1.0, h: 64 }, hex("#9fc2dd"), "slits");
 
-// Woodlawn → Dorchester
-building("apt-d1", { x: 15.2, y: 2.3, w: 1.1, d: 2.4, h: 36 }, GREYSTONE, "grid");
-building("apt-d2", { x: 16.6, y: 2.3, w: 1.1, d: 2.4, h: 42 }, BRICK, "grid");
-building("apt-d3", { x: 15.2, y: 6.3, w: 2.5, d: 1.0, h: 40 }, GREYSTONE, "grid");
-building("apt-d4", { x: 15.2, y: 7.7, w: 1.0, d: 1.1, h: 32 }, BRICK, "grid");
-building("apt-d5", { x: 15.2, y: 10.3, w: 2.4, d: 1.0, h: 34 }, GREYSTONE, "grid");
+// Woodlawn → Dorchester: gothic halls and courts
+gothic("woodlawn-hall", { x: 15.2, y: 2.3, w: 1.0, d: 2.4, h: 40 }, "y", 14, { turrets: ["D"] });
+gothic("dorchester-hall", { x: 16.6, y: 2.3, w: 1.0, d: 2.4, h: 44 }, "y", 15, { color: LIMESTONE_DARK });
+gothic("court-north", { x: 15.2, y: 6.3, w: 2.5, d: 1.0, h: 42 }, "x", 15, { turrets: ["C"] });
+gothic("court-south", { x: 15.2, y: 7.7, w: 1.0, d: 1.1, h: 36 }, "y", 13, { door: false });
+gothic("hall-58th", { x: 15.2, y: 10.3, w: 2.4, d: 0.8, h: 36 }, "x", 13, { door: false, dormers: false });
 
 // Robie House: long brick, deep flat roofs
 add("robie", true, (m, p) => {
@@ -423,32 +570,39 @@ add("booth", true, (m, p) => {
   m.box({ x: 15.0, y: 14.0, w: 3.0, d: 1.8, z: top + 5, h: 3 }, p.shades(hex("#f4f5f2")));
 });
 
-gothic("ida-noyes", { x: 15.2, y: 15.9, w: 2.3, d: 0.9, h: 34 }, "x", 12, { color: hex("#a35b45"), buttress: false });
+gothic("ida-noyes", { x: 15.2, y: 15.9, w: 2.3, d: 0.9, h: 34 }, "x", 13, { color: hex("#a35b45"), buttress: false });
 tower("ida-noyes-tower", { x: 17.0, y: 15.9, w: 0.6, d: 0.6, h: 56 }, hex("#a35b45"), 8);
-building("keller", { x: 15.3, y: 22.3, w: 2.4, d: 1.4, h: 40 }, hex("#d8d2c0"), "grid");
+gothic("seminary", { x: 15.3, y: 22.3, w: 2.4, d: 1.4, h: 42 }, "x", 15, { turrets: ["C"] });
 
 // Dorchester → the tracks
-building("apt-e1", { x: 19.2, y: 2.3, w: 1.0, d: 2.4, h: 34 }, BRICK, "grid");
-building("apt-e2", { x: 20.4, y: 2.3, w: 1.0, d: 2.4, h: 30 }, GREYSTONE, "grid");
-building("apt-e3", { x: 19.2, y: 6.3, w: 2.2, d: 1.0, h: 44 }, GREYSTONE, "grid");
-building("apt-e4", { x: 19.2, y: 7.7, w: 1.0, d: 1.1, h: 36 }, BRICK, "grid");
-building("apt-e5", { x: 19.2, y: 10.3, w: 1.0, d: 2.4, h: 48 }, hex("#b89b7a"), "grid");
-building("apt-e6", { x: 20.4, y: 10.3, w: 1.0, d: 2.4, h: 40 }, GREYSTONE, "grid");
-building("ihouse", { x: 19.2, y: 14.3, w: 2.2, d: 2.3, h: 64 }, hex("#cdbf9f"), "gothic");
+gothic("hall-e1", { x: 19.2, y: 2.3, w: 1.0, d: 2.4, h: 36 }, "y", 13, { color: LIMESTONE_DARK, door: false });
+gothic("hall-e2", { x: 20.4, y: 2.3, w: 1.0, d: 2.4, h: 32 }, "y", 12, { door: false, dormers: false });
+gothic("hall-e3", { x: 19.2, y: 6.3, w: 2.2, d: 1.0, h: 44 }, "x", 15, { turrets: ["D"] });
+gothic("hall-e4", { x: 19.2, y: 7.7, w: 1.0, d: 1.1, h: 36 }, "y", 13, { door: false });
+gothic("hall-e5", { x: 19.2, y: 10.3, w: 1.0, d: 2.4, h: 46 }, "y", 15, { color: LIMESTONE_DARK });
+gothic("hall-e6", { x: 20.4, y: 10.3, w: 1.0, d: 2.4, h: 40 }, "y", 14, { door: false });
+gothic("ihouse", { x: 19.2, y: 14.3, w: 2.2, d: 2.3, h: 62 }, "x", 16, { color: hex("#cdbf9f"), roof: TILE_ROOF_DEEP, turrets: ["D", "C"] });
 tower("ihouse-tower", { x: 19.9, y: 14.3, w: 1.0, d: 1.0, h: 116 }, hex("#cdbf9f"), 10);
-building("apt-e7", { x: 19.2, y: 22.3, w: 2.2, d: 1.4, h: 36 }, BRICK, "grid");
+gothic("hall-e7", { x: 19.2, y: 22.3, w: 2.2, d: 1.4, h: 38 }, "x", 14, { color: LIMESTONE_DARK, turrets: ["C"] });
 
-// Trees
+// Trees: thick on the quad and the Midway, lining the avenues
 trees("quad-trees", [
   [5.6, 12.0],
-  [6.9, 12.9],
-  [5.4, 14.6, 6],
-  [7.5, 14.4],
-  [6.3, 11.3, 4],
-  [7.9, 12.9, 4],
+  [7.1, 12.5],
+  [5.5, 14.7, 6],
+  [7.4, 14.6],
+  [6.0, 11.0, 4],
+  [7.6, 12.9, 4],
+  [5.3, 13.0, 4],
+  [7.3, 15.4, 5],
+  [5.7, 15.3, 4],
+  [6.6, 11.4, 4],
 ]);
-treeLine("midway-n", [0.6, 18.3], [21.0, 18.3], 1.5, 5);
-treeLine("midway-s", [1.3, 20.7], [21.0, 20.7], 1.5, 5);
+treeLine("midway-n", [0.6, 18.3], [21.0, 18.3], 1.3, 5);
+treeLine("midway-s", [1.3, 20.7], [21.0, 20.7], 1.3, 5);
+treeLine("ellis-w", [2.85, 5.8], [2.85, 16.6], 1.6, 4);
+treeLine("university-e", [10.15, 5.6], [10.15, 9.0], 1.6, 4);
+treeLine("woodlawn-w", [13.85, 5.6], [13.85, 16.8], 1.7, 4);
 treeLine("57th-n", [11.0, 8.75], [13.6, 8.75], 1.3, 4);
 treeLine("saieh-lawn", [11.9, 11.3], [13.4, 11.3], 0.75, 4);
 treeLine("rock-lawn", [10.6, 14.4], [12.2, 14.4], 0.8, 4);
@@ -460,9 +614,12 @@ trees("misc-trees", [
   [8.0, 7.0, 4],
   [18.5, 12.6, 4],
   [14.6, 12.8, 4],
-  [16.8, 11.4, 4],
+  [16.8, 11.0, 4],
   [20.6, 21.0, 4],
   [1.5, 17.5, 4],
+  [9.0, 23.6, 4],
+  [2.6, 1.6, 4],
+  [17.6, 13.4, 4],
 ]);
 
 export const PROPS: readonly Prop[] = props;
@@ -490,14 +647,6 @@ export function buildStatic(m: Mesh, p: Palette, riseAt: (i: number) => number) 
 // ---------------------------------------------------------------------------
 // Sky: stars at night, drifting clouds
 // ---------------------------------------------------------------------------
-
-function seeded(seed: number) {
-  let state = seed;
-  return () => {
-    state = (state * 48271) % 2147483647;
-    return state / 2147483647;
-  };
-}
 
 const STARS = (() => {
   const rand = seeded(7);
@@ -678,7 +827,7 @@ export const ANCHORS: readonly Anchor[] = [
   { id: "rink", label: "Midway rink", x: 13.5, y: 19.5, z: 10, keywords: ["rink", "midway", "skating"] },
   { id: "bus", label: "55th Street", x: 6.5, y: 1.5, z: 22, keywords: ["55 bus", "bus "] },
   { id: "metra", label: "59th St Metra", x: 22.2, y: 17.1, z: 36, keywords: ["metra"] },
-  { id: "bartlett", label: "Bartlett", x: 11.4, y: 8.2, z: 66, keywords: ["bartlett", "dining", "tikka", "omelet", "brunch"] },
+  { id: "bartlett", label: "Bartlett", x: 11.4, y: 8.2, z: 72, keywords: ["bartlett", "dining", "tikka", "omelet", "brunch"] },
   { id: "ratner", label: "Ratner", x: 6.4, y: 3.5, z: 100, keywords: ["ratner", "squat", "gym", "lap swim"] },
   { id: "booth", label: "Booth", x: 16.5, y: 14.9, z: 70, keywords: ["booth", "atrium", "mba", "harper center"] },
   { id: "maxp", label: "Max P", x: 6.0, y: 6.6, z: 58, keywords: ["max p", "palevsky", "fire alarm"] },
@@ -688,10 +837,10 @@ export const ANCHORS: readonly Anchor[] = [
   { id: "mansueto", label: "Mansueto", x: 8.15, y: 8.15, z: 40, keywords: ["mansueto"] },
   { id: "hutch", label: "Hutch", x: 8.4, y: 10.5, z: 140, keywords: ["hutch", "reynolds", "mitchell", "c-shop", "bells"] },
   { id: "quad", label: "The Quad", x: 6.5, y: 13.4, z: 18, keywords: ["quad", "hull gate", "scav", "hammock", "campus"] },
-  { id: "campus-north", label: "Campus North", x: 11.0, y: 3.5, z: 140, keywords: ["campus north", "elevator"] },
+  { id: "campus-north", label: "Campus North", x: 11.0, y: 3.5, z: 120, keywords: ["campus north", "elevator"] },
   { id: "ihouse", label: "I-House", x: 20.4, y: 15.0, z: 135, keywords: ["i-house", "international house"] },
   { id: "bj", label: "Burton-Judson", x: 6.5, y: 23.0, z: 70, keywords: ["cathey", "burton", "b-j", "judson"] },
-  { id: "crerar", label: "Crerar", x: 1.5, y: 11.5, z: 56, keywords: ["crerar", "pset", "problem set", "physics"] },
+  { id: "crerar", label: "Crerar", x: 0.8, y: 12.2, z: 60, keywords: ["crerar", "pset", "problem set", "physics"] },
   { id: "robie", label: "Robie House", x: 16.3, y: 12.4, z: 40, keywords: ["robie", "wright"] },
   { id: "sky", label: "Hyde Park sky", x: 17.5, y: 19.5, z: 70, keywords: ["rain", "snow", "frost", "weather", "°f", "wind", "sunny"] },
 ];
