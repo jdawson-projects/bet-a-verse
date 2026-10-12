@@ -1,157 +1,129 @@
 "use client";
 
-// Renders the campus and keeps the vehicles moving. Buildings are static SVG
-// drawn back-to-front once; each frame the vehicles get new polygon points and
-// are re-slotted in the DOM so they pass behind and in front of buildings.
+// The campus map: a canvas drawn at low resolution (2 screen pixels per art
+// pixel on desktop) and upscaled with hard edges, so it reads as pixel art.
+// Buildings grow out of the ground on first paint; vehicles, clouds and stars
+// move every frame. Dark mode switches to the night palette.
 
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import s from "./city.module.css";
-import { insertionIndex, screenBox, VIEW_H, VIEW_W, type ScreenBox, type Volume } from "./iso";
-import { CloudLayer, GroundLayer, poseAt, PROPS, SkyLayer, VehicleNode, vehicleParts, VEHICLES } from "./scene";
+import { VIEW_H, VIEW_W } from "./iso";
+import { Mesh } from "./mesh";
+import { DAY, NIGHT, type Palette } from "./palette";
+import { createRenderer } from "./renderer";
+import { buildSky, buildStatic, buildVehicles, PROPS } from "./scene";
 
-const SKEW = 26.565; // atan(1/2): the slope of isometric face edges
+const RISE_DELAY_MS = 150;
+const RISE_STAGGER_MS = 9;
+const RISE_DURATION_MS = 700;
 
-function Defs() {
-  const win = (id: string, skew: number, w: number, h: number, rects: readonly (readonly [number, number, number, number])[]) => (
-    <pattern id={id} width={w} height={h} patternUnits="userSpaceOnUse" patternTransform={`skewY(${skew})`}>
-      {rects.map(([x, y, rw, rh], i) => (
-        <rect key={i} className={s.win} x={x} y={y} width={rw} height={rh} />
-      ))}
-    </pattern>
-  );
-  const grid = [
-    [1, 1.5, 2.2, 2.6],
-    [5, 1.5, 2.2, 2.6],
-    [3, 6, 2.2, 2.6],
-    [7, 6, 2.2, 2.6],
-  ] as const;
-  const gothic = [
-    [1.5, 1, 1.8, 4.5],
-    [5.5, 1, 1.8, 4.5],
-  ] as const;
-  const slits = [
-    [1, 0, 0.9, 10],
-    [4, 0, 0.9, 10],
-    [7, 0, 0.9, 10],
-  ] as const;
-  return (
-    <defs>
-      {win("bav-gridL", SKEW, 9, 9, grid)}
-      {win("bav-gridR", -SKEW, 9, 9, grid)}
-      {win("bav-gothicL", SKEW, 8, 9, gothic)}
-      {win("bav-gothicR", -SKEW, 8, 9, gothic)}
-      {win("bav-slitsL", SKEW, 9, 10, slits)}
-      {win("bav-slitsR", -SKEW, 9, 10, slits)}
-      <linearGradient id="bav-glass" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stopColor="#d8ecf8" />
-        <stop offset="0.55" stopColor="#8fbbdc" />
-        <stop offset="1" stopColor="#4f86b4" />
-      </linearGradient>
-      <filter id="bav-blur" x="-30%" y="-60%" width="160%" height="220%">
-        <feGaussianBlur stdDeviation="16" />
-      </filter>
-    </defs>
-  );
-}
-
-interface StaticRef {
-  vol: Volume;
-  box: ScreenBox;
-  el: Element;
+function currentPalette(): Palette {
+  return document.documentElement.classList.contains("dark") ? NIGHT : DAY;
 }
 
 export function City({ className = "" }: { className?: string }) {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const worldRef = useRef<SVGGElement>(null);
+  const ref = useRef<HTMLCanvasElement>(null);
 
-  // Place the vehicles correctly before first paint, then animate.
-  useLayoutEffect(() => {
-    const world = worldRef.current;
-    const svg = svgRef.current;
-    if (!world || !svg) return;
-
-    const statics: StaticRef[] = [];
-    world.querySelectorAll<SVGGElement>("[data-static]").forEach((el) => {
-      const prop = PROPS[Number(el.dataset.static)];
-      statics.push({ vol: prop.vol, box: screenBox(prop.vol), el });
-    });
-
-    const vehicles = VEHICLES.map((spec) => {
-      const el = world.querySelector<SVGGElement>(`[data-vehicle="${spec.id}"]`)!;
-      const parts = new Map<string, SVGPolygonElement>();
-      el.querySelectorAll<SVGPolygonElement>("[data-f]").forEach((p) => parts.set(p.dataset.f!, p));
-      return { spec, el, parts, slot: -1 };
-    });
-
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const renderer = createRenderer(canvas);
+    const staticMesh = new Mesh(1 << 19);
+    const vehicleMesh = new Mesh(1 << 14);
+    const skyMesh = new Mesh(1 << 13);
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const start = performance.now();
+    const riseEnd = start + RISE_DELAY_MS + PROPS.length * RISE_STAGGER_MS + RISE_DURATION_MS;
+
+    let palette = currentPalette();
+    let staticDirty = true;
+    let riseDone = reduce;
     let visible = true;
     let frame = 0;
-    const start = performance.now();
 
-    const render = (now: number) => {
+    const riseAt = (now: number) => (i: number) => {
+      if (riseDone) return 1;
+      const t = Math.min(1, Math.max(0, (now - start - RISE_DELAY_MS - i * RISE_STAGGER_MS) / RISE_DURATION_MS));
+      return 1 - Math.pow(1 - t, 3);
+    };
+
+    const draw = (now: number) => {
       const t = reduce ? 0 : (now - start) / 1000;
-      for (const v of vehicles) {
-        const pose = poseAt(v.spec, t);
-        const parts = vehicleParts(v.spec, pose);
-        for (const [k, el] of v.parts) el.setAttribute("points", parts[k]);
-        const slot = insertionIndex(pose.vol, statics);
-        if (slot !== v.slot) {
-          v.slot = slot;
-          world.insertBefore(v.el, statics[slot]?.el ?? null);
-        }
+      if (!riseDone && now >= riseEnd) {
+        riseDone = true;
+        staticDirty = true;
       }
+      if (staticDirty || !riseDone) {
+        buildStatic(staticMesh, palette, riseAt(now));
+        staticDirty = false;
+      }
+      buildVehicles(vehicleMesh, palette, t);
+      buildSky(skyMesh, palette, t);
+      renderer.draw([staticMesh.view(), vehicleMesh.view(), skyMesh.view()]);
     };
 
     const loop = (now: number) => {
-      render(now);
+      draw(now);
       if (visible && !reduce) frame = requestAnimationFrame(loop);
     };
 
-    render(start);
-    if (!reduce) frame = requestAnimationFrame(loop);
+    // Art pixels are 2 screen pixels wide on anything bigger than a phone.
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0) return;
+      const scale = rect.width >= 640 ? 2 : 1;
+      const w = Math.max(1, Math.round(rect.width / scale));
+      const h = Math.max(1, Math.round((w * VIEW_H) / VIEW_W));
+      renderer.resize(w, h);
+      const px = VIEW_W / w;
+      staticMesh.px = px;
+      vehicleMesh.px = px;
+      skyMesh.px = px;
+      staticDirty = true;
+      if (reduce) draw(performance.now());
+    };
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+    resize();
 
-    // Don't burn frames while the map is scrolled out of view.
+    const mo = new MutationObserver(() => {
+      const next = currentPalette();
+      if (next !== palette) {
+        palette = next;
+        staticDirty = true;
+        if (reduce) draw(performance.now());
+      }
+    });
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+
     const io = new IntersectionObserver(([entry]) => {
       const next = entry.isIntersecting;
       if (next && !visible && !reduce) frame = requestAnimationFrame(loop);
       visible = next;
     });
-    io.observe(svg);
+    io.observe(canvas);
+
+    if (reduce) draw(start);
+    else frame = requestAnimationFrame(loop);
 
     return () => {
       visible = false;
       cancelAnimationFrame(frame);
+      ro.disconnect();
+      mo.disconnect();
       io.disconnect();
+      renderer.destroy();
     };
   }, []);
 
   return (
-    <svg
-      ref={svgRef}
-      className={`${s.root} ${className}`}
-      viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+    <canvas
+      ref={ref}
+      className={`${s.canvas} ${className}`}
+      width={VIEW_W / 2}
+      height={VIEW_H / 2}
       role="img"
-      aria-label="Isometric map of the University of Chicago campus in Hyde Park, with cars on the streets, the 55 bus, a Metra train and bets floating over the buildings"
-    >
-      <Defs />
-      <SkyLayer />
-      <GroundLayer />
-      <g ref={worldRef}>
-        {PROPS.map((p, i) => (
-          <g
-            key={p.id}
-            data-static={i}
-            className={p.rise ? s.rise : undefined}
-            style={p.rise ? { animationDelay: `${120 + i * 9}ms` } : undefined}
-          >
-            {p.node}
-          </g>
-        ))}
-        {VEHICLES.map((v) => (
-          <VehicleNode key={v.id} v={v} />
-        ))}
-      </g>
-      <CloudLayer />
-    </svg>
+      aria-label="Pixel-art map of the University of Chicago campus in Hyde Park: the quad, the Reg, Rockefeller Chapel and the Midway, with the 55 bus, cars and a Metra train, and bets floating over the buildings"
+    />
   );
 }
