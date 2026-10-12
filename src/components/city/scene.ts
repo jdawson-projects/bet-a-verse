@@ -960,10 +960,60 @@ add("booth", true, (m, p) => {
   }
   m.box({ x: wg.x - 0.04, y: wg.y - 0.04, w: wg.w + 0.08, d: wg.d + 0.08, z: top, h: 2.4 }, white, { outline: false });
 
-  // The pitched glass roof with a raised clerestory along the ridge
-  const roofGlass = { top: mix(glass.top, hex("#ffffff"), 0.35), left: mix(glass.left, hex("#ffffff"), 0.4), right: mix(glass.right, hex("#ffffff"), 0.2), edge: mullion };
-  m.gable({ ...wg, z: top + 2, h: 0 }, 22, "x", roofGlass, 2.5);
-  m.gable({ x: wg.x + 0.4, y: wg.y + 0.6, w: wg.w - 0.8, d: wg.d - 1.2, z: top + 16, h: 0 }, 13, "x", roofGlass, 2.5);
+  // The folded glass roof: three nested gables, each one's eaves resting on
+  // the slope of the one below, so the surface pleats like folded paper and
+  // the end gables stack into the stepped glass triangles seen from the street.
+  // Lit slope, shaded slope and the end gables each get their own tone so the folds read
+  const roofGlass = { top: mix(glass.top, hex("#ffffff"), 0.45), left: mix(glass.left, hex("#ffffff"), 0.1), right: mix(glass.right, hex("#ffffff"), 0.05), edge: mullion };
+  const spine = p.night ? mix(hex("#dfe3ea"), p.glass, 0.3) : hex("#f6f7f4");
+  const eave = top + 2.4;
+  const tiers = [
+    { ix: 0, iy: 0, rise: 11 },
+    { ix: 0.5, iy: 0.6, rise: 12 },
+    { ix: 1.0, iy: 1.1, rise: 11 },
+  ];
+  let baseZ = eave;
+  tiers.forEach((t, i) => {
+    if (i > 0) {
+      const prev = tiers[i - 1];
+      baseZ += prev.rise * ((t.iy - prev.iy) / (wg.d / 2 - prev.iy));
+    }
+    const x0 = wg.x + t.ix;
+    const x1 = wg.x + wg.w - t.ix;
+    const y0 = wg.y + t.iy;
+    const y1 = wg.y + wg.d - t.iy;
+    const yc = wg.y + wg.d / 2;
+    const zr = baseZ + t.rise;
+    const r1: P3 = [x0, yc, zr];
+    const r2: P3 = [x1, yc, zr];
+    const bias = 0.2 + i * 0.03;
+    // Two long slopes and the two end gables, glassy enough to show the branches beneath
+    m.poly([[x0, y0, baseZ], [x1, y0, baseZ], r2, r1], roofGlass.top, 0.8, bias);
+    m.poly([r1, r2, [x1, y1, baseZ], [x0, y1, baseZ]], roofGlass.left, 0.8, bias);
+    m.poly([[x1, y0, baseZ], [x1, y1, baseZ], r2], roofGlass.right, 0.85, bias);
+    m.poly([[x0, y1, baseZ], [x0, y0, baseZ], r1], roofGlass.right, 0.85, bias);
+    // Mullion grid: lines up each slope and along it
+    for (let x = x0 + 0.5; x < x1 - 0.01; x += 0.5) {
+      m.line([x, y0, baseZ], [x, yc, zr], 1, mullion, 0.45, bias + 0.01);
+      m.line([x, yc, zr], [x, y1, baseZ], 1, mullion, 0.45, bias + 0.01);
+    }
+    for (const u of [1 / 3, 2 / 3]) {
+      const z = baseZ + t.rise * u;
+      m.line([x0, yc - (yc - y0) * (1 - u), z], [x1, yc - (yc - y0) * (1 - u), z], 1, mullion, 0.4, bias + 0.01);
+      m.line([x0, yc + (y1 - yc) * (1 - u), z], [x1, yc + (y1 - yc) * (1 - u), z], 1, mullion, 0.4, bias + 0.01);
+    }
+    // White steel spine along each ridge and down the end gables
+    m.line(r1, r2, 1.6, spine, 1, bias + 0.02);
+    m.line(r2, [x1, y0, baseZ], 1.2, spine, 1, bias + 0.02);
+    m.line(r2, [x1, y1, baseZ], 1.2, spine, 1, bias + 0.02);
+    m.line(r1, [x0, y1, baseZ], 1.2, spine, 0.9, bias + 0.02);
+    m.line(r1, [x0, y0, baseZ], 1.2, spine, 0.9, bias + 0.02);
+    // The eave fold where this tier meets the one below
+    if (i > 0) {
+      m.line([x0, y0, baseZ], [x1, y0, baseZ], 1, mullion, 0.7, bias + 0.02);
+      m.line([x0, y1, baseZ], [x1, y1, baseZ], 1, mullion, 0.7, bias + 0.02);
+    }
+  });
 });
 
 export const PROPS: readonly Prop[] = props;
