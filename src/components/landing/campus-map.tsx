@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { City } from "@/components/city/city";
-import { percent, project, VIEW_H, VIEW_W } from "@/components/city/iso";
+import { project, VIEW_H, VIEW_W } from "@/components/city/iso";
 import { ANCHORS, CATEGORY_ANCHOR, toScene, type Anchor } from "@/components/city/scene";
 import { formatCoins } from "@/lib/format";
 import { formatPrice, impliedYes } from "@/lib/money";
@@ -9,37 +9,64 @@ import styles from "./campus-map.module.css";
 
 export type LandingMarket = Database["public"]["Functions"]["get_landing_markets"]["Returns"][number];
 
-const MAX_BUBBLES = 6;
-/** Minimum spacing between bubbles, in percent of the map width (height weighted up, bubbles are wide). */
-const MIN_GAP = 14.5;
-/** How many bubbles phones show (the rest appear from the sm breakpoint up). */
-const MOBILE_BUBBLES = 3;
+/**
+ * Bubbles live in the empty corners around the block and point at their
+ * building with a leader line, so the drawing itself stays uncovered.
+ * Each slot is a percent position inside the map frame; `side` says which
+ * edge of the bubble the line leaves from.
+ */
+interface Slot {
+  x: number;
+  y: number;
+  side: "left" | "right";
+}
 
-function bubblePos(a: Anchor) {
+const SLOTS: Slot[] = [
+  { x: 1, y: 5, side: "left" },
+  { x: 1, y: 24, side: "left" },
+  { x: 1, y: 80, side: "left" },
+  { x: 99, y: 5, side: "right" },
+  { x: 99, y: 24, side: "right" },
+  { x: 99, y: 80, side: "right" },
+];
+
+/** Roughly how wide a bubble is, in percent of the frame, so the line starts at its edge. */
+const BUBBLE_W = 18;
+const BUBBLE_H = 9;
+
+const MAX_BUBBLES = SLOTS.length;
+
+export interface Bubble {
+  anchor: Anchor;
+  market: LandingMarket;
+  slot: Slot;
+  /** Anchor point, percent of the frame. */
+  ax: number;
+  ay: number;
+}
+
+function anchorPos(a: Anchor): { x: number; y: number } {
   const [px, py] = project(...toScene(a.x, a.y), a.z);
   return { x: (px / VIEW_W) * 100, y: (py / VIEW_H) * 100 };
 }
 
-function farEnough(a: Anchor, placed: readonly Anchor[]): boolean {
-  const p = bubblePos(a);
-  return placed.every((b) => {
-    const q = bubblePos(b);
-    return Math.hypot(p.x - q.x, (p.y - q.y) * 1.2) >= MIN_GAP;
-  });
+function matchesKeyword(a: Anchor, m: LandingMarket): boolean {
+  const q = m.question.toLowerCase();
+  return a.keywords.some((k) => q.includes(k));
 }
 
 /**
  * Pins markets to the landmarks their questions mention (unmatched ones go by
- * category), then keeps a spread-out handful so bubbles don't pile up.
+ * category), then gives each a corner slot on its own side of the map.
  */
-export function placeBubbles(markets: readonly LandingMarket[]): { anchor: Anchor; market: LandingMarket }[] {
+export function placeBubbles(markets: readonly LandingMarket[]): Bubble[] {
   const used = new Set<string>();
-  const candidates: { anchor: Anchor; market: LandingMarket }[] = [];
+  const candidates: { anchor: Anchor; market: LandingMarket; fallback: boolean }[] = [];
 
   for (const anchor of ANCHORS) {
-    const m = markets.find((mk) => !used.has(mk.id) && anchor.keywords.some((k) => mk.question.toLowerCase().includes(k)));
+    const m = markets.find((mk) => !used.has(mk.id) && matchesKeyword(anchor, mk));
     if (!m) continue;
-    candidates.push({ anchor, market: m });
+    candidates.push({ anchor, market: m, fallback: false });
     used.add(m.id);
   }
   const taken = new Set(candidates.map((c) => c.anchor.id));
@@ -47,63 +74,83 @@ export function placeBubbles(markets: readonly LandingMarket[]): { anchor: Ancho
     if (used.has(m.id)) continue;
     const anchor = ANCHORS.find((a) => a.id === CATEGORY_ANCHOR[m.category] && !taken.has(a.id));
     if (!anchor) continue;
-    candidates.push({ anchor, market: m });
+    candidates.push({ anchor, market: m, fallback: true });
     taken.add(anchor.id);
     used.add(m.id);
   }
+  candidates.sort((a, b) => Number(a.fallback) - Number(b.fallback) || Number(Boolean(b.anchor.primary)) - Number(Boolean(a.anchor.primary)));
 
-  // Landmark matches beat category fallbacks, and primary anchors go first; then greedily keep the ones with room.
-  const isFallback = (c: { anchor: Anchor; market: LandingMarket }) => !matchesKeyword(c);
-  candidates.sort(
-    (a, b) =>
-      Number(isFallback(a)) - Number(isFallback(b)) ||
-      Number(Boolean(b.anchor.primary)) - Number(Boolean(a.anchor.primary)),
-  );
-  const out: { anchor: Anchor; market: LandingMarket }[] = [];
+  // Slots on the anchor's side of the map, nearest in height first.
+  const free = new Set(SLOTS);
+  const out: Bubble[] = [];
   for (const c of candidates) {
     if (out.length >= MAX_BUBBLES) break;
-    // A bubble hangs above its anchor; anchors near the top edge would float off the map.
-    if (bubblePos(c.anchor).y < 14) continue;
-    if (farEnough(c.anchor, out.map((o) => o.anchor))) out.push(c);
+    const { x: ax, y: ay } = anchorPos(c.anchor);
+    const side = ax < 50 ? "left" : "right";
+    const byHeight = (a: Slot, b: Slot) => Math.abs(a.y - ay) - Math.abs(b.y - ay);
+    // Never borrow a slot from the other side: the line would cross the drawing.
+    const slot = [...free].filter((s) => s.side === side).sort(byHeight)[0];
+    if (!slot) continue;
+    free.delete(slot);
+    out.push({ anchor: c.anchor, market: c.market, slot, ax, ay });
   }
   return out;
 }
 
-function matchesKeyword(c: { anchor: Anchor; market: LandingMarket }): boolean {
-  const q = c.market.question.toLowerCase();
-  return c.anchor.keywords.some((k) => q.includes(k));
-}
-
-function shorten(q: string, max = 58): string {
+function shorten(q: string, max = 64): string {
   return q.length <= max ? q : `${q.slice(0, max - 1).trimEnd()}…`;
 }
 
 export function CampusMap({ markets }: { markets: readonly LandingMarket[] }) {
   const bubbles = placeBubbles(markets);
   return (
-    <div className={styles.frame} style={{ aspectRatio: `${VIEW_W} / ${VIEW_H}` }}>
-      <City className={styles.city} />
-      {bubbles.map(({ anchor, market }, i) => {
-        const p = impliedYes(market.yes_total, market.no_total);
-        const pos = percent(...toScene(anchor.x, anchor.y), anchor.z);
-        return (
-          <Link
-            key={market.id}
-            href={`/login?next=${encodeURIComponent(`/m/${market.id}`)}`}
-            className={`${styles.bubble} ${i < MOBILE_BUBBLES ? "" : styles.secondary}`}
-            style={{ left: pos.left, top: pos.top, animationDelay: `${1.9 + i * 0.12}s, ${i * 0.7}s` }}
-            aria-label={`${market.question} YES ${formatPrice(p)}, NO ${formatPrice(1 - p)}. Near ${anchor.label}.`}
-          >
-            <span className={styles.place}>{anchor.label}</span>
-            <span className={styles.question}>{shorten(market.question)}</span>
-            <span className={styles.odds}>
-              <span className={styles.yes}>YES {formatPrice(p)}</span>
-              <span className={styles.no}>NO {formatPrice(1 - p)}</span>
-              <span className={styles.pot}>{formatCoins(market.yes_total + market.no_total)} coins</span>
-            </span>
-          </Link>
-        );
-      })}
+    <div className={styles.wrap}>
+      <div className={styles.frame} style={{ aspectRatio: `${VIEW_W} / ${VIEW_H}` }}>
+        <City className={styles.city} />
+        <svg className={styles.leaders} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+          {bubbles.map(({ market, slot, ax, ay }) => {
+            const sx = slot.side === "left" ? slot.x + BUBBLE_W : slot.x - BUBBLE_W;
+            const sy = slot.y + BUBBLE_H / 2;
+            return (
+              <g key={market.id} className={styles.leader}>
+                <line x1={sx} y1={sy} x2={ax} y2={ay} vectorEffect="non-scaling-stroke" />
+                <circle cx={ax} cy={ay} r="0.55" vectorEffect="non-scaling-stroke" />
+              </g>
+            );
+          })}
+        </svg>
+        <ul className={styles.bubbles}>
+          {bubbles.map(({ anchor, market, slot }, i) => {
+            const p = impliedYes(market.yes_total, market.no_total);
+            return (
+              <li
+                key={market.id}
+                className={`${styles.bubble} ${slot.side === "right" ? styles.right : ""}`}
+                style={{
+                  left: slot.side === "left" ? `${slot.x}%` : undefined,
+                  right: slot.side === "right" ? `${100 - slot.x}%` : undefined,
+                  top: `${slot.y}%`,
+                  animationDelay: `${1.9 + i * 0.12}s`,
+                }}
+              >
+                <Link
+                  href={`/login?next=${encodeURIComponent(`/m/${market.id}`)}`}
+                  className={styles.card}
+                  aria-label={`${market.question} YES ${formatPrice(p)}, NO ${formatPrice(1 - p)}. Near ${anchor.label}.`}
+                >
+                  <span className={styles.place}>{anchor.label}</span>
+                  <span className={styles.question}>{shorten(market.question)}</span>
+                  <span className={styles.odds}>
+                    <span className={styles.yes}>YES {formatPrice(p)}</span>
+                    <span className={styles.no}>NO {formatPrice(1 - p)}</span>
+                    <span className={styles.pot}>{formatCoins(market.yes_total + market.no_total)} coins</span>
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </div>
   );
 }

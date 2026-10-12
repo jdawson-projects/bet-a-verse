@@ -127,10 +127,8 @@ export class Mesh {
       const e = s.edge;
       const k = 0.04;
       for (const [p, q] of [
-        [A, B],
         [B, C],
         [C, D],
-        [D, A],
         [D, Db],
         [C, Cb],
         [B, Bb],
@@ -139,6 +137,10 @@ export class Mesh {
       ] as const) {
         this.line(p, q, 1, e, alpha, k);
       }
+      // Pixel-art bevel: the top face's far edges catch the light.
+      const hi: RGB = [Math.min(1, s.top[0] + 0.14), Math.min(1, s.top[1] + 0.14), Math.min(1, s.top[2] + 0.12)];
+      this.line(A, B, 1, hi, alpha, k);
+      this.line(D, A, 1, hi, alpha, k);
     }
   }
 
