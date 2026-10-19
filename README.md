@@ -43,6 +43,9 @@ Supabase Studio (browse tables, run SQL) is at http://127.0.0.1:54323.
 | `pnpm seed` | Wipe seeded rows, then insert fresh day-one content (idempotent) |
 | `pnpm seed:reset` | Only wipe seeded rows (live seeded markets are voided first, so real bettors get refunds) |
 | `pnpm make-admin <email> [role]` | Set a user's role |
+| `pnpm snapshot` | Freeze the landing page's bets from the seeded local database into `src/components/landing/snapshot.json` |
+| `pnpm build:pages` | Build the static landing-page-only copy into `out/` (no database, no sign-in) |
+| `pnpm deploy:pages` | Build that copy and publish it to the `gh-pages` branch for GitHub Pages |
 | `pnpm env:local` | Write `.env.local` from the running local stack |
 | `pnpm test` | Vitest: unit tests plus database tests against local Supabase |
 | `pnpm test:unit` | Vitest unit tests only (no database needed) |
@@ -82,6 +85,18 @@ e2e/                   Playwright smoke test
 - Stakes are 1, 5, 10 or 25 coins, at most 100 coins per user per market. Undo works within 5 seconds.
 - Settlement per pool: `house = floor(total × rake_bps / 10000)`, each winner gets `floor(stake × distributable / winning_total)`, and rounding dust stays with the house. A pool with an empty side, or a voided market, refunds everything.
 - `close_due_markets()` runs every minute via pg_cron.
+
+## Landing preview on GitHub Pages
+
+GitHub Pages only serves static files, so it can't run the real app (sessions, the proxy and the database all need a server). It can serve a **landing-page-only copy**: the same page and pixel map, with a frozen board of sample bets and links to this repo instead of sign-in.
+
+- Live at `https://<user>.github.io/bet-a-verse/` once Pages is switched on.
+- To refresh the sample bets: `pnpm db:reset` (or `pnpm seed`), then `pnpm snapshot`, and commit `snapshot.json`.
+- To publish: `pnpm deploy:pages`. It builds with `PAGES_BUILD=1` and force-pushes `out/` to the `gh-pages` branch, which only ever holds build output.
+- One-time setup: repo **Settings → Pages → Build and deployment → Deploy from a branch → `gh-pages` / `/ (root)`**.
+- Serving it from a different path (a custom domain at the root, say) means building with `PAGES_BASE_PATH=` set to that path, or empty.
+
+How it works: with `PAGES_BUILD=1`, `next.config.ts` turns on `output: "export"` and sets `pageExtensions: ["static.tsx"]`, so only `layout.static.tsx` and `page.static.tsx` count as routes. The rest of the app, including the proxy, is not compiled. Both landing pages render the shared `landing-view.tsx`.
 
 ## Deploy (Vercel + Supabase cloud)
 

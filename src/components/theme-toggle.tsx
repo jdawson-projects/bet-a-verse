@@ -1,13 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 
-/** Light by default; the choice lives in a cookie so the server renders the right theme. */
+function subscribe(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+  return () => observer.disconnect();
+}
+const isDark = () => document.documentElement.classList.contains("dark");
+
+/**
+ * Light by default; the choice lives in a cookie. The real app renders the right
+ * theme on the server, the static copy sets it from a tiny script before paint,
+ * so the button follows the page's own class instead of guessing.
+ */
 export function ThemeToggle({ initialDark, className = "" }: { initialDark: boolean; className?: string }) {
-  const [dark, setDark] = useState(initialDark);
+  const dark = useSyncExternalStore(subscribe, isDark, () => initialDark);
   function toggle() {
     const next = !dark;
-    setDark(next);
     document.documentElement.classList.toggle("dark", next);
     document.cookie = `theme=${next ? "dark" : "light"}; path=/; max-age=31536000; samesite=lax`;
   }

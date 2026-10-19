@@ -101,7 +101,16 @@ function shorten(q: string, max = 64): string {
   return q.length <= max ? q : `${q.slice(0, max - 1).trimEnd()}…`;
 }
 
-export function CampusMap({ markets }: { markets: readonly LandingMarket[] }) {
+/** Where a bubble goes when tapped: the sign-in page unless the caller says otherwise. */
+const loginHref = (m: LandingMarket) => `/login?next=${encodeURIComponent(`/m/${m.id}`)}`;
+
+export function CampusMap({
+  markets,
+  hrefFor = loginHref,
+}: {
+  markets: readonly LandingMarket[];
+  hrefFor?: (m: LandingMarket) => string;
+}) {
   const bubbles = placeBubbles(markets);
   return (
     <div className={styles.wrap}>
@@ -134,7 +143,7 @@ export function CampusMap({ markets }: { markets: readonly LandingMarket[] }) {
                 }}
               >
                 <Link
-                  href={`/login?next=${encodeURIComponent(`/m/${market.id}`)}`}
+                  href={hrefFor(market)}
                   className={styles.card}
                   aria-label={`${market.question} YES ${formatPrice(p)}, NO ${formatPrice(1 - p)}. Near ${anchor.label}.`}
                 >
