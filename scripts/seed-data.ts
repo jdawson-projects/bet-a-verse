@@ -79,7 +79,7 @@ export const OPEN_MARKETS: SeedMarket[] = [
   { question: "Will the Main Quad hammocks still be up next Friday?", details: "Resolved by a photo from the Quad at noon next Friday.", category: "campus", community: "uchicago", lean: 0.5, hours: 165 },
   { question: "Will the Pub run out of pretzels on trivia night?", details: "Per the bartender or a menu board photo before 11pm Thursday.", category: "campus", community: "uchicago", lean: 0.25, hours: 96 },
   { question: "Will Snell-Hitchcock win the house Halloween costume contest?", details: "Per the official RSO announcement.", category: "campus", community: "uchicago", lean: 0.4, hours: 160 },
-  { question: "Will the average on Min Sok Lee's Econ 200 midterm break 75?", details: "Per the class average posted on Canvas after grading. Saieh Hall is already sweating.", category: "campus", community: "uchicago", lean: 0.3, hours: 110, featured: true },
+  { question: "Will the average on Min Sok Lee's Econ 100 midterm break 70%?", details: "YES if the class average posted on Canvas after grading is above 70%. Saieh Hall is already sweating.", category: "campus", community: "uchicago", lean: 0.3, hours: 110, featured: true },
   { question: "Will the Midway rink open before November?", details: "Official announcement from the university.", category: "campus", community: "uchicago", lean: 0.15, hours: 168 },
   { question: "Is the Cathey omelet line shorter than 10 people at 9am Saturday?", details: "Photo evidence in the comments at 9:00–9:10 am Saturday.", category: "campus", community: "uchicago", lean: 0.55, hours: 125 },
 
